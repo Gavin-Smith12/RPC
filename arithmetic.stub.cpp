@@ -10,18 +10,22 @@ using namespace C150NETWORK;  // for all the comp150 utilities
 
 void __add() {
   char varBuffer[512];
-  char doneBuffer[512];
-  int x, y;
+  // char doneBuffer[512];
+  int x, y, res;
 
   //
   // Time to actually call the function 
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: invoking add()");
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
+  RPCSTUBSOCKET->read(varBuffer, sizeof(varBuffer));
   x = stoi((string) varBuffer);
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
-  y = stoi((string) varBuffer);
-  add(x, y);
+  size_t xLen = to_string(x).length();
+  cout << x << endl;
+  // RPCSTUBSOCKET->read(varBuffer, sizeof(varBuffer));
+  y = stoi(string(&(varBuffer[xLen+1])));
+  cout << y << endl;
+  res = add(x, y);
+  string resStr = to_string(res);
 
   //
   // Send the response to the client
@@ -30,22 +34,25 @@ void __add() {
   // where we'd send the return value back.
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: returned from  add() -- responding to client");
-  RPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);
+  RPCSTUBSOCKET->write(resStr.c_str(), resStr.length()+1);
 }
 
 void __subtract() {
-  char doneBuffer[512];
+  char varBuffer[512];
 
+  int x, y, res;
   //
   // Time to actually call the function 
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: invoking subtract()");
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
+  RPCSTUBSOCKET->read(varBuffer, sizeof(varBuffer));
   x = stoi((string) varBuffer);
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
-  y = stoi((string) varBuffer);
-  subtract(x, y);
-
+  size_t xLen = to_string(x).length();
+  cout << x << endl;
+  y = stoi(string(&(varBuffer[xLen+1])));
+  cout << y << endl;
+  res = subtract(x, y);
+  string resStr = to_string(res);
   //
   // Send the response to the client
   //
@@ -53,21 +60,26 @@ void __subtract() {
   // where we'd send the return value back.
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: returned from  subtract() -- responding to client");
-  RPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);
+  RPCSTUBSOCKET->write(resStr.c_str(), resStr.length()+1);
 }
 
 void __multiply() {
-  char doneBuffer[512];
+  char varBuffer[512];
+
+  int x, y, res;
 
   //
   // Time to actually call the function 
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: invoking multiply()");
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
+  RPCSTUBSOCKET->read(varBuffer, sizeof(varBuffer));
   x = stoi((string) varBuffer);
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
-  y = stoi((string) varBuffer);
-  multiply(x, y);
+  size_t xLen = to_string(x).length();
+  cout << x << endl;
+  y = stoi(string(&(varBuffer[xLen+1])));
+  cout << y << endl;
+  res = multiply(x, y);
+  string resStr = to_string(res);
 
   //
   // Send the response to the client
@@ -76,21 +88,27 @@ void __multiply() {
   // where we'd send the return value back.
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: returned from multiply() -- responding to client");
-  RPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);
+  RPCSTUBSOCKET->write(resStr.c_str(), resStr.length()+1);
 }
 
 void __divide() {
-  char doneBuffer[512];
+  char varBuffer[512];
+
+  int x, y, res;
 
   //
   // Time to actually call the function 
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: invoking divide()");
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
+  RPCSTUBSOCKET->read(varBuffer, sizeof(varBuffer));
   x = stoi((string) varBuffer);
-  RPCPROXYSOCKET->read(varBuffer, sizeof(varBuffer));
-  y = stoi((string) varBuffer);
-  divide(x, y);
+  size_t xLen = to_string(x).length();
+  cout << x << endl;
+  y = stoi(string(&(varBuffer[xLen+1])));
+  cout << y << endl;
+  res = divide(x, y);
+  string resStr = to_string(res);
+ 
 
   //
   // Send the response to the client
@@ -99,7 +117,7 @@ void __divide() {
   // where we'd send the return value back.
   //
   c150debug->printf(C150RPCDEBUG,"arithmetic.stub.cpp: returned from  divide() -- responding to client");
-  RPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);
+  RPCSTUBSOCKET->write(resStr.c_str(), resStr.length()+1);
 }
 
 void getFunctionNamefromStream();
