@@ -10,10 +10,8 @@ IDL_TO_JSON_EXECUTABLE = './idl_to_json'
 
 def idlToJson(fileName):
 
-    print(fileName)
     with open(fileName) as idlFile:
         idlText = idlFile.read()
-        print(idlText)
 
     #
     #     Make sure idl_to_json exists and is executable
@@ -71,13 +69,13 @@ def createFile(fileName):
               "#include <cstdio>\n#include <cstring>\n#include \"c150debug.h\"\n" + \
               "using namespace C150NETWORK;\n"
 
-    file = open(fileProxy, 'w+')
-    file.write(headers % (fileName, "proxy"))
-    file.close()
+    with open(fileProxy, 'w+') as file:
+        file.write(headers % (fileName, "proxy"))
 
-    file = open(fileStub, 'w+')
-    file.write(headers % (fileName, "stub"))
-    file.close()
+    with open(fileStub, 'w+') as file:
+        file.write(headers % (fileName, "stub"))
+
+
 
 def writeProxy(functionData):
 
@@ -134,7 +132,6 @@ def writeProxy(functionData):
             file.write(writeString)
 
 
-
 def numCreateArg(argName):
     return "\tstring %sStr = to_string(%s);\n" % (argName, argName)
 
@@ -149,6 +146,101 @@ def intCreateReturn(funcName):
     writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
     return writeString
 
+
+def writeStub(functionData):
+
+    writeString = ""
+
+    ### Create declaration for function stub
+    for func in functionData:
+        writeString += "__%s %s(" % (func[0], func[1])
+        first = True
+
+        for arg in func[2]:
+            if first:
+                writeString += writeString + "%s %s" % (arg["type"], arg["name"])
+                first = False
+            else:
+                writeString += writeString + ", %s %s" % (arg["type"], arg["name"])
+        writeString += writeString + ") {\n"
+
+        ### Create read buffer
+        writeString += writeString + "\tchar readBuffer[512];\n\n"
+
+        ### Declare argument variables
+        for arg in func[2]:
+            writeString += "\t%s %s;\n" % (arg["type"], arg["name"])
+
+        ### Declare return variable
+        writeString += "\t%s ret;\n" % (func[0])
+
+        ### Declare length variable for parsing readBuffer
+        writeString += "\tint readLen = 0;\n"
+
+        writeString += writeString + "\n"
+        writeString += "\t//\n\t// Time to actually call the function\n\t//\n"
+
+        writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: invoking %s()\");" % (fileProxy, func[1])
+
+        writeString += "RPCSTUBSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
+
+
+        ### Loop through arguments
+        first = True;
+        for arg in func[2]:
+            type = arg["type"]
+            name = arg["name"]
+            if type == "int":
+                # ret is tuple (string, bool)
+                ret = intToArgType(name, first)
+                writeString += ret[0]
+                first = ret[1]
+
+            elif type == "float":
+                pass
+            elif type == "string":
+                pass
+            elif type == "array":
+                pass
+            elif type == "struct":
+                pass
+
+        firstArg = True
+        writeString += "\tret = %s(" % (func[1])
+        for arg in func[2]:
+            if firstArg:
+                writeString = writeString + "%s" % (arg["name"])
+                firstArg = False
+            else:
+                writeString = writeString + ", %s" % (arg["name"])
+        writeString = writeString + ");\n"
+
+
+
+        if func[0] == "int" or func[0] == "float":
+            writeString += "\tstring retStr = to_string(ret);\n"
+        else:
+            ### TODO ###
+            pass
+
+        writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: returned from %s() -- responding to client\");\n" % (fileStub, func[1])
+
+        writeString += "\tRPCSTUBSOCKET->write(retStr.c_str(), retStr.length()+1);\n"
+        writeString += "}\n"
+
+    with open(fileStub, "a") as file:
+            file.write(writeString)
+
+def intToArgType(argName, first):
+    writeString = ""
+    if first:
+        writeString += "\t%s = stoi(string(readBuffer));\n" % (argName)
+        writeString += "\treadLen += to_string(%s).length();\n" % (argName)
+        first = False
+    else:
+        writeString += "\t%s = stoi(string(&(readBuffer[readLen+1])));\n" % (argName)
+    return (writeString, first)
+
 if __name__ == "__main__":
          
     if len(sys.argv) != 2:
@@ -162,4 +254,6 @@ if __name__ == "__main__":
     createFile(fileName)
     functionData = jsonDictToList(decls)
     writeProxy(functionData)
+    writeStub(functionData)
+
 
