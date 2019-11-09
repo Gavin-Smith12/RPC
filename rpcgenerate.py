@@ -59,7 +59,7 @@ def jsonDictToList(decls):
 
         functionData.append((sig["return_type"], name, args))
 
-        print(functionData[0][2][1]["type"] + " " + functionData[0][2][1]["name"])
+    return functionData
 
 
 
@@ -79,6 +79,75 @@ def createFile(fileName):
     file.write(headers % (fileName, "stub"))
     file.close()
 
+def writeProxy(functionData):
+
+    writeString = ""
+
+    ### Create declaration line of function
+    for func in functionData:
+        writeString = "%s %s(" % (func[0], func[1])
+        first = True
+        for arg in func[2]:
+            if first:
+                writeString = writeString + "%s %s" % (arg["type"], arg["name"])
+                first = False
+            else:
+                writeString = writeString + ", %s %s" % (arg["type"], arg["name"])
+        writeString = writeString + ") {\n"
+
+        ### Create read buffer
+        writeString = writeString + "\tchar readBuffer[512];\n\n"
+
+        ### Convert arguments to strings
+        for arg in func[2]:
+            if arg["type"] == "int" or arg["type"] == "float":
+                writeString += numCreateArg(arg["name"])
+
+        writeString = writeString + "\n"
+
+        ### Debug statement for starting write
+        writeString = writeString + "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invoked\");\n\n" % (fileProxy, func[1])
+
+        ### Writing function and arguments
+        writeString = writeString + "\tRPCPROXYSOCKET->write(\"%s\", strlen(\"%s\")+1);\n" % (func[1], func[1])
+        for arg in func[2]:
+            if arg["type"] == "int" or arg["type"] == "float":
+                writeString += numWriteArg(arg["name"])
+
+        writeString += "\n"
+
+        ### Debug statement for invocation then wait
+        writeString = writeString + "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invocation sent, waiting for response\");\n\n" % (fileProxy, func[1])
+
+        ### Read from server
+        writeString += "\tRPCPROXYSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
+
+        ### Convert return to correct type
+        if func[0] == "int":
+            writeString += intCreateReturn(func[1])
+
+        ### Successful return statement and return
+        writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s successful return from remote call\");\n\n" % (fileProxy, func[1])
+        writeString += "\treturn ret;\n}\n\n"
+
+        with open(fileProxy, "a") as file:
+            file.write(writeString)
+
+
+
+def numCreateArg(argName):
+    return "\tstring %sStr = to_string(%s);\n" % (argName, argName)
+
+def numWriteArg(argName):
+    return "\tRPCPROXYSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n" % (argName, argName)
+
+def intCreateReturn(funcName):
+    writeString = ""
+    writeString += "\tint ret;\n"
+    writeString += "\ttry {\n"
+    writeString += "\t\tret = stoi(readBuffer);\n\t } catch(invalid_argument& e) {\n"
+    writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
+    return writeString
 
 if __name__ == "__main__":
          
@@ -91,5 +160,6 @@ if __name__ == "__main__":
 
     decls = idlToJson(fileName)
     createFile(fileName)
-    jsonDictToList(decls)
+    functionData = jsonDictToList(decls)
+    writeProxy(functionData)
 
