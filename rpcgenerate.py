@@ -153,19 +153,19 @@ def writeStub(functionData):
 
     ### Create declaration for function stub
     for func in functionData:
-        writeString += "__%s %s(" % (func[0], func[1])
+        writeString = "%s __%s(" % (func[0], func[1])
         first = True
 
         for arg in func[2]:
             if first:
-                writeString += writeString + "%s %s" % (arg["type"], arg["name"])
+                writeString += "%s %s" % (arg["type"], arg["name"])
                 first = False
             else:
-                writeString += writeString + ", %s %s" % (arg["type"], arg["name"])
-        writeString += writeString + ") {\n"
+                writeString += ", %s %s" % (arg["type"], arg["name"])
+        writeString += ") {\n"
 
         ### Create read buffer
-        writeString += writeString + "\tchar readBuffer[512];\n\n"
+        writeString += "\tchar readBuffer[512];\n\n"
 
         ### Declare argument variables
         for arg in func[2]:
@@ -177,7 +177,7 @@ def writeStub(functionData):
         ### Declare length variable for parsing readBuffer
         writeString += "\tint readLen = 0;\n"
 
-        writeString += writeString + "\n"
+        writeString += "\n"
         writeString += "\t//\n\t// Time to actually call the function\n\t//\n"
 
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: invoking %s()\");" % (fileProxy, func[1])
@@ -226,9 +226,9 @@ def writeStub(functionData):
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: returned from %s() -- responding to client\");\n" % (fileStub, func[1])
 
         writeString += "\tRPCSTUBSOCKET->write(retStr.c_str(), retStr.length()+1);\n"
-        writeString += "}\n"
+        writeString += "}\n\n"
 
-    with open(fileStub, "a") as file:
+        with open(fileStub, "a") as file:
             file.write(writeString)
 
 def intToArgType(argName, first):
