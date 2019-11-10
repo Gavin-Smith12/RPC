@@ -65,15 +65,16 @@ def createFile(fileName):
     fileProxy = fileName[:-4] + ".proxy.cpp"
     fileStub = fileName[:-4] + ".stub.cpp"
 
-    headers = "#include \"%s\"\n#include \"rpc%shelper.h\"\n" + \
+    headers = "#include \"rpc%shelper.h\"\n" + \
               "#include <cstdio>\n#include <cstring>\n#include \"c150debug.h\"\n" + \
-              "using namespace C150NETWORK;\n"
+              "using namespace C150NETWORK;\nusing namespace std;\n" + \
+              "#include \"%s\"\n\n" 
 
     with open(fileProxy, 'w+') as file:
-        file.write(headers % (fileName, "proxy"))
+        file.write(headers % ("proxy", fileName))
 
     with open(fileStub, 'w+') as file:
-        file.write(headers % (fileName, "stub"))
+        file.write(headers % ("stub", fileName))
 
 
 
@@ -100,6 +101,8 @@ def writeProxy(functionData):
         for arg in func[2]:
             if arg["type"] == "int" or arg["type"] == "float":
                 writeString += numCreateArg(arg["name"])
+            elif arg["type"] == "string":
+                writeString += stringCreateArg(arg["name"])
 
         writeString = writeString + "\n"
 
@@ -109,8 +112,7 @@ def writeProxy(functionData):
         ### Writing function and arguments
         writeString = writeString + "\tRPCPROXYSOCKET->write(\"%s\", strlen(\"%s\")+1);\n" % (func[1], func[1])
         for arg in func[2]:
-            if arg["type"] == "int" or arg["type"] == "float":
-                writeString += numWriteArg(arg["name"])
+            writeString += writeArg(arg["name"])
 
         writeString += "\n"
 
@@ -125,6 +127,8 @@ def writeProxy(functionData):
             writeString += intCreateReturn(func[1])
         elif func[0] == "float":
             writeString += floatCreateReturn(func[1])
+        elif func[0] == "string":
+            writeString += "string ret = readBuffer;\n"
 
         ### Successful return statement and return
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s successful return from remote call\");\n\n" % (fileProxy, func[1])
@@ -137,7 +141,10 @@ def writeProxy(functionData):
 def numCreateArg(argName):
     return "\tstring %sStr = to_string(%s);\n" % (argName, argName)
 
-def numWriteArg(argName):
+def stringCreateArg(argName):
+    return "\t string %sStr = %s;\n" % (argName, argName)
+
+def writeArg(argName):
     return "\tRPCPROXYSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n" % (argName, argName)
 
 def intCreateReturn(funcName):
@@ -181,9 +188,11 @@ def writeStub(functionData):
         writeString += "\n"
         writeString += "\t//\n\t// Time to actually call the function\n\t//\n"
 
-        writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: invoking %s()\");" % (fileProxy, func[1])
+        writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: invoking %s()\");\n" % (fileProxy, func[1])
 
-        writeString += "RPCSTUBSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
+        writeString += "\tusleep(250000);\n"
+
+        writeString += "\tRPCSTUBSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
 
 
         ### Loop through arguments
@@ -202,7 +211,9 @@ def writeStub(functionData):
                 writeString += ret[0]
                 first = ret[1]
             elif type == "string":
-                pass
+                ret = stringToArgType(name, first)
+                writeString += ret[0]
+                first = ret[1]
             elif type == "array":
                 pass
             elif type == "struct":
@@ -222,8 +233,9 @@ def writeStub(functionData):
 
         if func[0] == "int" or func[0] == "float":
             writeString += "\tstring retStr = to_string(ret);\n"
+        elif func[0] == "string":
+            writeString += "\tstring retStr = ret;\n"
         else:
-            ### TODO ###
             pass
 
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: returned from %s() -- responding to client\");\n" % (fileStub, func[1])
@@ -278,20 +290,33 @@ def intToArgType(argName, first):
     writeString = ""
     if first:
         writeString += "\t%s = stoi(string(readBuffer));\n" % (argName)
-        writeString += "\treadLen += to_string(%s).length();\n" % (argName)
+        writeString += "\treadLen += to_string(%s).length()+1;\n" % (argName)
         first = False
     else:
-        writeString += "\t%s = stoi(string(&(readBuffer[readLen+1])));\n" % (argName)
+        writeString += "\t%s = stoi(string(&(readBuffer[readLen])));\n" % (argName)
+        writeString += "\treadLen += to_string(%s).length()+1;\n" % (argName)
     return (writeString, first)
 
 def floatToArgType(argName, first):
     writeString = ""
     if first:
         writeString += "\t%s = stof(string(readBuffer));\n" % (argName)
-        writeString += "\treadLen += to_string(%s).length();\n" % (argName)
+        writeString += "\treadLen += to_string(%s).length()+1;\n" % (argName)
         first = False
     else:
-        writeString += "\t%s = stof(string(&(readBuffer[readLen+1])));\n" % (argName)
+        writeString += "\t%s = stof(string(&(readBuffer[readLen])));\n" % (argName)
+        writeString += "\treadLen += to_string(%s).length()+1;\n" % (argName)
+    return (writeString, first)
+
+def stringToArgType(argName, first):
+    writeString = ""
+    if first:
+        writeString += "\t%s = readBuffer;\n" % (argName)
+        writeString += "\treadLen += %s.length()+1;\n" % (argName)
+        first = False
+    else:
+        writeString += "\t%s = &(readBuffer[readLen]);\n" % (argName)
+        writeString += "\treadLen += %s.length()+1;\n" % (argName)
     return (writeString, first)
 
 if __name__ == "__main__":
