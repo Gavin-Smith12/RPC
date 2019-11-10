@@ -123,6 +123,8 @@ def writeProxy(functionData):
         ### Convert return to correct type
         if func[0] == "int":
             writeString += intCreateReturn(func[1])
+        elif func[0] == "float":
+            writeString += floatCreateReturn(func[1])
 
         ### Successful return statement and return
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s successful return from remote call\");\n\n" % (fileProxy, func[1])
@@ -146,6 +148,13 @@ def intCreateReturn(funcName):
     writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
     return writeString
 
+def floatCreateReturn(funcName):
+    writeString = ""
+    writeString += "\tfloat ret;\n"
+    writeString += "\ttry {\n"
+    writeString += "\t\tret = stof(readBuffer);\n\t } catch(invalid_argument& e) {\n"
+    writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
+    return writeString
 
 def writeStub(functionData):
 
@@ -153,15 +162,7 @@ def writeStub(functionData):
 
     ### Create declaration for function stub
     for func in functionData:
-        writeString = "%s __%s(" % (func[0], func[1])
-        first = True
-
-        for arg in func[2]:
-            if first:
-                writeString += "%s %s" % (arg["type"], arg["name"])
-                first = False
-            else:
-                writeString += ", %s %s" % (arg["type"], arg["name"])
+        writeString = "void __%s(" % func[1]
         writeString += ") {\n"
 
         ### Create read buffer
@@ -197,7 +198,9 @@ def writeStub(functionData):
                 first = ret[1]
 
             elif type == "float":
-                pass
+                ret = floatToArgType(name, first)
+                writeString += ret[0]
+                first = ret[1]
             elif type == "string":
                 pass
             elif type == "array":
@@ -228,8 +231,48 @@ def writeStub(functionData):
         writeString += "\tRPCSTUBSOCKET->write(retStr.c_str(), retStr.length()+1);\n"
         writeString += "}\n\n"
 
+
         with open(fileStub, "a") as file:
             file.write(writeString)
+
+    with open(fileStub, "a") as file:
+        file.write(writeSupportFuncs(functionData))
+
+def writeSupportFuncs(functionData):
+    writeString = "void getFunctionNamefromStream();\n\n"
+    writeString += "void __badFunction(char *functionName) {\n"
+    writeString += "\tchar doneBuffer[5] = \"BAD\";\n"
+    writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: received call for nonexistent function %%s()\",functionName);\n" % fileStub
+    writeString += "\tRPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);\n}\n\n"
+    writeString += "void getFunctionNameFromStream(char *buffer, unsigned int bufSize);\n\n"
+    writeString += "void dispatchFunction() {\n\n"
+    writeString += "\tchar functionNameBuffer[50];\n"
+    writeString += "\tgetFunctionNameFromStream(functionNameBuffer,sizeof(functionNameBuffer));\n"
+    writeString += "\tif(!RPCSTUBSOCKET->eof()) {\n"
+    first = True
+    for func in functionData:
+        if first:
+            writeString += "\t\tif (strcmp(functionNameBuffer, \"%s\") == 0)\n\t\t\t__%s();\n" % (func[1], func[1])
+            first = False
+        else:
+            writeString += "\t\telse if (strcmp(functionNameBuffer, \"%s\") == 0)\n\t\t\t__%s();\n" % (func[1], func[1])
+    writeString += "\t\telse\n\t\t\t__badFunction(functionNameBuffer);\n\t}\n}\n\n"
+    writeString += "void getFunctionNameFromStream(char *buffer, unsigned int bufSize) {\n"
+    writeString += "\tunsigned int i;\n\tchar *bufp;\n\tbool readnull;\n\tssize_t readlen;\n"
+    writeString += "\treadnull = false;\n\tbufp = buffer;\n"
+    writeString += "\tfor (i=0; i< bufSize; i++) {\n"
+    writeString += "\t\treadlen = RPCSTUBSOCKET->read(bufp, 1);\n"
+    writeString += "\t\tif (readlen == 0) {\n\t\t\tbreak;\n\t\t}\n"
+    writeString += "\t\tif(*bufp++ == \'\\0\') {\n\t\t\treadnull = true;\n\t\t\tbreak;\n\t\t}\n\t}\n"
+    writeString += "\tif (readlen == 0) {\n"
+    writeString += "\t\tc150debug->printf(C150RPCDEBUG,\"%s: read zero length message, checking EOF\");\n" % fileStub[:-4]
+    writeString += "\t\tif(RPCSTUBSOCKET->eof()) {\n"
+    writeString += "\t\t\tc150debug->printf(C150RPCDEBUG,\"%s: EOF signaled on input\");\n" % fileStub[:-4]
+    writeString += "\t\t} else {\n"
+    writeString += "\t\t\tthrow C150Exception(\"%s: unexpected zero length read without eof\");\n\t\t}\n\t}\n" % fileStub[:-4]
+    writeString += "\telse if(!readnull)\n"
+    writeString += "\t\tthrow C150Exception(\"%s: method name not null terminated or too long\");\n}" % fileStub[:-4]
+    return writeString
 
 def intToArgType(argName, first):
     writeString = ""
@@ -239,6 +282,16 @@ def intToArgType(argName, first):
         first = False
     else:
         writeString += "\t%s = stoi(string(&(readBuffer[readLen+1])));\n" % (argName)
+    return (writeString, first)
+
+def floatToArgType(argName, first):
+    writeString = ""
+    if first:
+        writeString += "\t%s = stof(string(readBuffer));\n" % (argName)
+        writeString += "\treadLen += to_string(%s).length();\n" % (argName)
+        first = False
+    else:
+        writeString += "\t%s = stof(string(&(readBuffer[readLen+1])));\n" % (argName)
     return (writeString, first)
 
 if __name__ == "__main__":
