@@ -95,7 +95,10 @@ def writeProxy(functionData):
         writeString = writeString + ") {\n"
 
         ### Create read buffer
-        writeString = writeString + "\tchar readBuffer[512];\n\n"
+        if func[0] == "void":
+            writeString += "\tchar readBuffer[5];\n\n"
+        else:
+            writeString = writeString + "\tchar readBuffer[512];\n\n"
 
         ### Convert arguments to strings
         for arg in func[2]:
@@ -129,10 +132,16 @@ def writeProxy(functionData):
             writeString += floatCreateReturn(func[1])
         elif func[0] == "string":
             writeString += "string ret = readBuffer;\n"
+        elif func[0] == "void":
+            writeString += voidCreateReturn(func[1])
 
         ### Successful return statement and return
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s successful return from remote call\");\n\n" % (fileProxy, func[1])
-        writeString += "\treturn ret;\n}\n\n"
+        ### Don't return if void
+        if func[0] != "void":
+            writeString += "\treturn ret;\n}\n\n"
+        else:
+            writeString += "}\n\n"
 
         with open(fileProxy, "a") as file:
             file.write(writeString)
@@ -163,6 +172,12 @@ def floatCreateReturn(funcName):
     writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
     return writeString
 
+def voidCreateReturn(funcName):
+    writeString = ""
+    writeString += "\tif (strncmp(readBuffer,\"DONE\", sizeof(readBuffer))!=0) {\n"
+    writeString += "\t\tthrow C150Exception(\"%s: %s() received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
+    return writeString
+
 def writeStub(functionData):
 
     writeString = ""
@@ -173,6 +188,9 @@ def writeStub(functionData):
         writeString += ") {\n"
 
         ### Create read buffer
+        if func[0] == "void":
+            writeString += "\tchar doneBuffer[5] = \"DONE\";\n\n"
+            
         writeString += "\tchar readBuffer[512];\n\n"
 
         ### Declare argument variables
@@ -180,7 +198,8 @@ def writeStub(functionData):
             writeString += "\t%s %s;\n" % (arg["type"], arg["name"])
 
         ### Declare return variable
-        writeString += "\t%s ret;\n" % (func[0])
+        if func[0] != "void":
+            writeString += "\t%s ret;\n" % (func[0])
 
         ### Declare length variable for parsing readBuffer
         writeString += "\tint readLen = 0;\n"
@@ -220,7 +239,10 @@ def writeStub(functionData):
                 pass
 
         firstArg = True
-        writeString += "\tret = %s(" % (func[1])
+        if func[0] == "void":
+            writeString += "\t%s(" % (func[1])
+        else:
+            writeString += "\tret = %s(" % (func[1])
         for arg in func[2]:
             if firstArg:
                 writeString = writeString + "%s" % (arg["name"])
@@ -240,7 +262,10 @@ def writeStub(functionData):
 
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: returned from %s() -- responding to client\");\n" % (fileStub, func[1])
 
-        writeString += "\tRPCSTUBSOCKET->write(retStr.c_str(), retStr.length()+1);\n"
+        if func[0] == "void":
+            writeString += "\tRPCSTUBSOCKET->write(doneBuffer, strlen(doneBuffer)+1);\n"
+        else: 
+            writeString += "\tRPCSTUBSOCKET->write(retStr.c_str(), retStr.length()+1);\n"
         writeString += "}\n\n"
 
 
