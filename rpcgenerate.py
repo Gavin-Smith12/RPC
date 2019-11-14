@@ -190,8 +190,9 @@ def writeStub(functionData):
         ### Create read buffer
         if func[0] == "void":
             writeString += "\tchar doneBuffer[5] = \"DONE\";\n\n"
-            
-        writeString += "\tchar readBuffer[512];\n\n"
+        
+        if len(func[2]) > 0:
+            writeString += "\tchar readBuffer[512];\n\n"
 
         ### Declare argument variables
         for arg in func[2]:
@@ -202,7 +203,8 @@ def writeStub(functionData):
             writeString += "\t%s ret;\n" % (func[0])
 
         ### Declare length variable for parsing readBuffer
-        writeString += "\tint readLen = 0;\n"
+        if len(func[2]) > 0:
+            writeString += "\tint readLen = 0;\n"
 
         writeString += "\n"
         writeString += "\t//\n\t// Time to actually call the function\n\t//\n"
@@ -211,7 +213,8 @@ def writeStub(functionData):
 
         writeString += "\tusleep(250000);\n"
 
-        writeString += "\tRPCSTUBSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
+        if len(func[2]) > 0:
+            writeString += "\tRPCSTUBSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
 
 
         ### Loop through arguments
