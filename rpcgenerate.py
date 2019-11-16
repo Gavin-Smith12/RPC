@@ -237,6 +237,11 @@ def writeStub(typeDict, functionList):
 		if len(func[2]) > 0:
 			writeString += "\tchar readBuffer[512];\n\n"
 
+		for arg in func[2]:
+			if typeDict[arg["type"]]["type_of_type"] == "array":
+				writeString += "\tstring temp;\n"
+				break
+
 		### Declare argument variables
 		for arg in func[2]:
 			writeString += stubCreateArg(arg, typeDict)
@@ -411,26 +416,24 @@ def arrayToArgType(first, arg, typeDict):
 	typeObj = typeDict[arg["type"]]
 	memberType = typeObj["member_type"]
 
-	writeString += "\tint startOfNextString = 0;\n"
-	writeString += "\tstring temp;\n"
 	writeString += "\tfor (int i=0; i<%s; i++) {\n" % typeObj["element_count"]
-	writeString += "\t\ttemp = string(&readBuffer[startOfNextString]);\n"
+	writeString += "\t\ttemp = string(&readBuffer[readLen]);\n"
 
 	if memberType == "int" or memberType == "float":
 		writeString += "\t\ttry {\n" 
 		if memberType == "int":
-			writeString += "\t\t\t%s[i] = stoi(temp)\n" % arg["name"]
+			writeString += "\t\t\t%s[i] = stoi(temp);\n" % arg["name"]
 			writeString += "\t\t} catch (invalid_argument&) {\n"
 			writeString += "\t\t\tcerr << \"Problem with stoi'ing\" << endl;\n"
 		else:
-			writeString += "\t\t\t%s[i] = stof(temp)\n" % arg["name"]
+			writeString += "\t\t\t%s[i] = stof(temp);\n" % arg["name"]
 			writeString += "\t\t} catch (invalid_argument&) {\n"
 			writeString += "\t\t\tcerr << \"Problem with stof'ing\" << endl;\n"
 		writeString += "\t\t}\n"
 	elif memberType == "string":
-		writeString += "\t\t%s[i] = temp\n" % arg["name"]
+		writeString += "\t\t%s[i] = temp;\n" % arg["name"]
 	
-	writeString += "\t\tstartOfNextString += temp.length()+1;\n"
+	writeString += "\t\treadLen += temp.length()+1;\n"
 	writeString += "\t}\n"
 	first = False
 
