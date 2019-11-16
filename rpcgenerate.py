@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import subprocess
 import json
@@ -36,9 +36,9 @@ def idlToJson(fileName):
    
 
 # P
-def jsonDictToList(decls):
+def createFunctionsList(decls):
 
-    functionData = []
+    functionList = []
     #
     # Loop printing each function signature
     #
@@ -55,11 +55,13 @@ def jsonDictToList(decls):
 
 
 
-        functionData.append((sig["return_type"], name, args))
+        functionList.append((sig["return_type"], name, args))
 
-    return functionData
+    return functionList
 
+def createTypesDict(decls):
 
+    return decls["types"]
 
 def createFile(fileName):
     fileProxy = fileName[:-4] + ".proxy.cpp"
@@ -78,12 +80,12 @@ def createFile(fileName):
 
 
 
-def writeProxy(functionData):
+def writeProxy(typeDict, functionList):
 
     writeString = ""
 
     ### Create declaration line of function
-    for func in functionData:
+    for func in functionList:
         writeString = "%s %s(" % (func[0], func[1])
         first = True
         for arg in func[2]:
@@ -100,22 +102,18 @@ def writeProxy(functionData):
         else:
             writeString = writeString + "\tchar readBuffer[512];\n\n"
 
-        ### Convert arguments to strings
-        for arg in func[2]:
-            if arg["type"] == "int" or arg["type"] == "float":
-                writeString += numCreateArg(arg["name"])
-            elif arg["type"] == "string":
-                writeString += stringCreateArg(arg["name"])
-
-        writeString = writeString + "\n"
-
         ### Debug statement for starting write
         writeString = writeString + "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invoked\");\n\n" % (fileProxy, func[1])
 
         ### Writing function and arguments
         writeString = writeString + "\tRPCPROXYSOCKET->write(\"%s\", strlen(\"%s\")+1);\n" % (func[1], func[1])
+        
+        writeString = writeString + "\n"
+
+        ### Convert arguments to strings
         for arg in func[2]:
-            writeString += writeArg(arg["name"])
+            ret = createArg(arg, typeDict)
+            writeString += ret
 
         writeString += "\n"
 
@@ -134,6 +132,8 @@ def writeProxy(functionData):
             writeString += "string ret = readBuffer;\n"
         elif func[0] == "void":
             writeString += voidCreateReturn(func[1])
+        elif func[0]["type_of_type"] == "array":
+            writeString += arrayCreateReturn(func[1])
 
         ### Successful return statement and return
         writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s successful return from remote call\");\n\n" % (fileProxy, func[1])
@@ -146,12 +146,48 @@ def writeProxy(functionData):
         with open(fileProxy, "a") as file:
             file.write(writeString)
 
+def createArg(arg, typeDict):
+    ret = ""
+    if arg["type"] == "int" or arg["type"] == "float":
+        ret += numCreateArg(arg["name"])
+    elif arg["type"] == "string":
+        ret += stringCreateArg(arg["name"])
+    elif typeDict[arg["type"]]["type_of_type"] == "array":
+        ret += arrayCreateArg(arg, typeDict)
+    else:
+        print "in else"
+    return ret
 
 def numCreateArg(argName):
-    return "\tstring %sStr = to_string(%s);\n" % (argName, argName)
+    writeString = ""
+    nobracketsArgName = argName.replace('[', '').replace(']', '')
+    writeString += "\tstring %sStr = to_string(%s);\n" % (nobracketsArgName, argName)
+    writeString += writeArg(nobracketsArgName)
+    return writeString
 
 def stringCreateArg(argName):
-    return "\t string %sStr = %s;\n" % (argName, argName)
+    writeString = ""
+    nobracketsArgName = argName.replace('[', '').replace(']', '')
+    writeString += "\tstring %sStr = %s;\n" % (nobracketsArgName, argName)
+    writeString += writeArg(nobracketsArgName)
+    return writeString
+
+def arrayCreateArg(arg, typeDict):
+    writeString = ""
+    typeObj = typeDict[arg["type"]]
+    memberType = typeObj["member_type"]
+    elementCount = int(typeObj["element_count"])
+    arrayName = arg["name"]
+    for i in range(elementCount):
+        newName = arg["name"] + "[" + str(i) + "]";
+        if memberType == "int" or memberType == "float":
+            writeString += numCreateArg(newName)
+        elif memberType == "string":
+            writeString += stringCreateArg(newName)
+        else:
+            print "struct or array in array"
+        
+    return writeString
 
 def writeArg(argName):
     return "\tRPCPROXYSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n" % (argName, argName)
@@ -178,12 +214,12 @@ def voidCreateReturn(funcName):
     writeString += "\t\tthrow C150Exception(\"%s: %s() received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
     return writeString
 
-def writeStub(functionData):
+def writeStub(typeDict, functionList):
 
     writeString = ""
 
     ### Create declaration for function stub
-    for func in functionData:
+    for func in functionList:
         writeString = "void __%s(" % func[1]
         writeString += ") {\n"
 
@@ -196,7 +232,8 @@ def writeStub(functionData):
 
         ### Declare argument variables
         for arg in func[2]:
-            writeString += "\t%s %s;\n" % (arg["type"], arg["name"])
+            writeString += stubCreateArg(arg, typeDict)
+
 
         ### Declare return variable
         if func[0] != "void":
@@ -220,25 +257,23 @@ def writeStub(functionData):
         ### Loop through arguments
         first = True;
         for arg in func[2]:
-            type = arg["type"]
+            typeString = arg["type"]
             name = arg["name"]
-            if type == "int":
+            if typeString == "int":
                 # ret is tuple (string, bool)
                 ret = intToArgType(name, first)
                 writeString += ret[0]
                 first = ret[1]
 
-            elif type == "float":
+            elif typeString == "float":
                 ret = floatToArgType(name, first)
                 writeString += ret[0]
                 first = ret[1]
-            elif type == "string":
+            elif typeString == "string":
                 ret = stringToArgType(name, first)
                 writeString += ret[0]
                 first = ret[1]
-            elif type == "array":
-                pass
-            elif type == "struct":
+            elif typeString == "":
                 pass
 
         firstArg = True
@@ -276,9 +311,9 @@ def writeStub(functionData):
             file.write(writeString)
 
     with open(fileStub, "a") as file:
-        file.write(writeSupportFuncs(functionData))
+        file.write(writeSupportFuncs(functionList))
 
-def writeSupportFuncs(functionData):
+def writeSupportFuncs(functionList):
     writeString = "void getFunctionNamefromStream();\n\n"
     writeString += "void __badFunction(char *functionName) {\n"
     writeString += "\tchar doneBuffer[5] = \"BAD\";\n"
@@ -290,7 +325,7 @@ def writeSupportFuncs(functionData):
     writeString += "\tgetFunctionNameFromStream(functionNameBuffer,sizeof(functionNameBuffer));\n"
     writeString += "\tif(!RPCSTUBSOCKET->eof()) {\n"
     first = True
-    for func in functionData:
+    for func in functionList:
         if first:
             writeString += "\t\tif (strcmp(functionNameBuffer, \"%s\") == 0)\n\t\t\t__%s();\n" % (func[1], func[1])
             first = False
@@ -347,6 +382,19 @@ def stringToArgType(argName, first):
         writeString += "\treadLen += %s.length()+1;\n" % (argName)
     return (writeString, first)
 
+def stubCreateArg(arg, typeDict):
+    writeString = ""
+    typeOfType = typeDict[arg["type"]]["type_of_type"]
+    if typeOfType == "builtin":
+        writeString += "\t%s %s;\n" % (arg["type"], arg["name"])
+    elif typeOfType == "array":
+        memberType = typeDict[arg["type"]]["member_type"]
+        elementCount = typeDict[arg["type"]]["element_count"]
+        writeString += "\t%s %s[%s];\n" % (memberType, arg["name"], str(elementCount))
+    elif typeOfType == "struct":
+        print "struct"
+    return writeString
+
 if __name__ == "__main__":
          
     if len(sys.argv) != 2:
@@ -358,8 +406,7 @@ if __name__ == "__main__":
 
     decls = idlToJson(fileName)
     createFile(fileName)
-    functionData = jsonDictToList(decls)
-    writeProxy(functionData)
-    writeStub(functionData)
-
-
+    functionList = createFunctionsList(decls)
+    typeDict = createTypesDict(decls)
+    writeProxy(typeDict, functionList)
+    writeStub(typeDict, functionList)
