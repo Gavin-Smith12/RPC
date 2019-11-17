@@ -160,9 +160,12 @@ def createArg(arg, typeDict):
 	elif arg["type"] == "string":
 		ret += stringCreateArg(arg["name"])
 	elif typeDict[arg["type"]]["type_of_type"] == "array":
-		ret += arrayCreateArg(arg, typeDict)
+		ret += arrayCreateArg(arg, typeDict, arg["name"])
+	elif typeDict[arg["type"]]["type_of_type"] == "struct":
+		ret += structCreateArg(arg, typeDict, arg["name"])
 	else:
-		print "in else"
+		print "Argument is not of known type"
+		
 	return ret
 
 def numCreateArg(argName):
@@ -181,21 +184,37 @@ def stringCreateArg(argName):
 	writeString += "\n"
 	return writeString
 
-def arrayCreateArg(arg, typeDict):
+def arrayCreateArg(arg, typeDict, name):
 	writeString = ""
 	typeObj = typeDict[arg["type"]]
 	memberType = typeObj["member_type"]
 	elementCount = int(typeObj["element_count"])
-	arrayName = arg["name"]
+	arrayName = name
 	for i in range(elementCount):
-		newName = arg["name"] + "[" + str(i) + "]";
+		newName = arrayName + "[" + str(i) + "]";
 		if memberType == "int" or memberType == "float":
 			writeString += numCreateArg(newName)
 		elif memberType == "string":
 			writeString += stringCreateArg(newName)
 		elif memberType[:1] == "_":
 			writeString += nDArrayArg(newName, memberType)
-		
+	return writeString
+
+def structCreateArg(arg, typeDict, name):
+	writeString = ""
+	typeObj = typeDict[arg["type"]]
+	structMembers = typeObj["members"]
+	structName = arg["name"]
+	for member in structMembers:
+		if member["type"] == "int" or member["type"] == "float":
+			writeString += numCreateArg(structName + "." + member["name"])
+		elif member["type"] == "string":
+			writeString += stringCreateArg(structName + "." + member["name"])
+		elif typeDict[member["type"]]["type_of_type"] == "array":
+			writeString += arrayCreateArg(member, typeDict, structName + "." + member["name"])
+		elif typeDict[member["type"]]["type_of_type"] == "struct":
+			writeString += structCreateArg(member, typeDict, structName + "." + member["name"])
+
 	return writeString
 
 def nDArrayArg(newName, memberType):
@@ -422,7 +441,7 @@ def stubCreateArg(arg, typeDict):
 		elementCount = typeDict[arg["type"]]["element_count"]
 		writeString += "\t%s %s[%s];\n" % (memberType, arg["name"], str(elementCount))
 	elif typeOfType == "struct":
-		print "struct"
+		pass
 	return writeString
 
 def arrayToArgType(first, arg, typeDict):
