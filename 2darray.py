@@ -2,7 +2,7 @@
 
 ### rpcgenerate file takes in an idl file as input and creates proxy and stub
 ### C++ files which then can be run with expected input to do an RPC call over
-### the comp117 network. 
+### the comp117 network 
 
 import subprocess
 import json
