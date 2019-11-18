@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+### rpcgenerate file takes in an idl file as input and creates proxy and stub
+### C++ files which then can be run with expected input to do an RPC call over
+### the comp117 network. 
+
 import subprocess
 import json
 import sys
@@ -7,7 +11,7 @@ import os
 
 IDL_TO_JSON_EXECUTABLE = './idl_to_json'
 
-
+### Function takes in an idl file and returns the idl data as JSON data
 def idlToJson(fileName):
 
 	with open(fileName) as idlFile:
@@ -35,7 +39,7 @@ def idlToJson(fileName):
 	return decls
    
 
-# P
+### Function given to us that creates a list of the arguments of a function
 def createFunctionsList(decls):
 
 	functionList = []
@@ -59,18 +63,28 @@ def createFunctionsList(decls):
 
 	return functionList
 
+### Returns the list of types of a given dictionary
 def createTypesDict(decls):
 
 	return decls["types"]
 
+### Takes in a file name and creates the proxy and stub files, and then writes
+### a comment at the top of the files and writes the needed #includes at the 
+### top of the files. Writes the files afterwards.
 def createFile(fileName):
 	fileProxy = fileName[:-4] + ".proxy.cpp"
 	fileStub = fileName[:-4] + ".stub.cpp"
 
-	headers = "#include \"rpc%shelper.h\"\n" + \
+	headers = "#include \"rpc%shelper.h\"\n#include\"c150grading.h\"\n" + \
 			  "#include <cstdio>\n#include <cstring>\n#include \"c150debug.h\"\n" + \
 			  "using namespace C150NETWORK;\nusing namespace std;\n" + \
 			  "#include \"%s\"\n\n" 
+
+	proxyComment = "/*\n\tThis file is %s.\n\tWritten by Gavin Smith and Ravi Serota.\n" % fileProxy
+	proxyComment += "\tFile sends function names and arguments to server to be computed "
+	proxyComment += "and then\n\treturns the value returned by the server.\n*/\n\n" 
+
+	headers = proxyComment + headers
 
 	with open(fileProxy, 'w+') as file:
 		file.write(headers % ("proxy", fileName))
@@ -78,8 +92,10 @@ def createFile(fileName):
 	with open(fileStub, 'w+') as file:
 		file.write(headers % ("stub", fileName))
 
-
-
+### Main function to write the entire proxy file. Takes in a dictionary of the 
+### JSON data for the functions and the list of functions needed to be written.
+### Parses the JSON data and creates and writes all of the needed functions
+### and network calls.
 def writeProxy(typeDict, functionList):
 
 	writeString = ""
@@ -88,8 +104,10 @@ def writeProxy(typeDict, functionList):
 	for func in functionList:
 		writeString = "%s %s(" % (func[0], func[1])
 		first = True
+		### Loop through arguments of the function
 		for arg in func[2]:
 			typeObj = typeDict[arg["type"]]
+			### If its the first argument don't have a comma
 			if first:
 				if typeObj["type_of_type"] == "array":
 					arraySplit = arg["type"].find('[')
@@ -104,6 +122,14 @@ def writeProxy(typeDict, functionList):
 				else:
 					writeString = writeString + ", %s %s" % (arg["type"], arg["name"])
 		writeString = writeString + ") {\n"
+		declaredFunc = writeString[:-2]
+
+		### Write grading log
+		writeString += "\n\t//\n\t//  DO THIS FIRST OR YOUR ASSIGNMENT WON'T BE GRADED!\n"
+		writeString += "\t//\n\n\tGRADEME(argc, argv);\n\n"
+
+		### Grading log for invoking function
+		writeString += "\t*GRADING << \"Invoking: %s\" << endl;\n\n" % (declaredFunc)
 
 		### Create read buffer
 		if func[0] == "void":
@@ -156,6 +182,9 @@ def writeProxy(typeDict, functionList):
 		with open(fileProxy, "a") as file:
 			file.write(writeString)
 
+### Function is called with an argument and the type dictionary and returns 
+### the string that is the argument being written to the stub. Calls helper 
+### functions to deal with the specific data types.
 def createArg(arg, typeDict):
 	ret = ""
 	if arg["type"] == "int" or arg["type"] == "float":
@@ -171,22 +200,35 @@ def createArg(arg, typeDict):
 		
 	return ret
 
+### Function is given an int or a float and converts it to a string then 
+### writes it using the COMP150 network framework.
 def numCreateArg(argName):
 	writeString = ""
+	### If the argument is part of an array take away the brackets as data
+	### names cannot have brackets in them.
 	nobracketsArgName = argName.replace('[', '').replace(']', '')
+	writeString += "\t*GRADING << \"Writing %s with value: \" << %s << endl;\n" % (argName, argName)
 	writeString += "\tstring %sStr = to_string(%s);\n" % (nobracketsArgName.replace('.', ''), argName)
 	writeString += writeArg(nobracketsArgName)
 	writeString += "\n"
 	return writeString
 
+### Function takes in a string and then writes the string using the COMP150 network
+### framework.
 def stringCreateArg(argName):
 	writeString = ""
+	### If the argument is part of an array take away the brackets as strings
+	### cannot have brackets in their name.
 	nobracketsArgName = argName.replace('[', '').replace(']', '')
+	writeString += "\t*GRADING << \"Writing %s with value: \" << %s << endl;\n" % (argName, argName)
 	writeString += "\tstring %sStr = %s;\n" % (nobracketsArgName.replace('.', ''), argName)
 	writeString += writeArg(nobracketsArgName)
 	writeString += "\n"
 	return writeString
 
+### Function takes in an array and loops through the elements, and with each
+### element either recursively calls itself or calls one of the other helper
+### functions.
 def arrayCreateArg(arg, typeDict, name):
 	writeString = ""
 	typeObj = typeDict[arg]
@@ -205,9 +247,12 @@ def arrayCreateArg(arg, typeDict, name):
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
 			structDict = {'type': memberType, 'name': name}
 			writeString += structCreateArg(structDict, typeDict, newName)
-
 	return writeString
 
+
+### Function takes in a struct and loops through the members of the struct 
+### and either calls a helper function to have the member written or 
+### recursively calls itself if a member is also a struct.
 def structCreateArg(arg, typeDict, name):
 	writeString = ""
 	typeObj = typeDict[arg["type"]]
@@ -224,11 +269,16 @@ def structCreateArg(arg, typeDict, name):
 			writeString += structCreateArg(member, typeDict, structName + "." + member["name"])
 	return writeString
 
+### Generic function to write the argument to the server.
 def writeArg(argName):
 	return "\tRPCPROXYSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n" % (argName, argName)
 
+### Function takes in an int name and writes to the C++ a string that reads 
+### the string into an int and checks if stoi failed. Iterates how many variables
+### have been read (readLen)
 def intCreateReturn(funcName, structName, first):
 	writeString = ""
+	### If not a part of a struct or array the return variable must be declared
 	if structName == "":
 		writeString += "\tint ret;\n"	
 	writeString += "\ttry {\n"
@@ -243,10 +293,17 @@ def intCreateReturn(funcName, structName, first):
 		else:
 			writeString += "\t\tret = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
+	### Write grading log
+	if structName == "":
+		writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
 
+### Function takes in a float name and writes to the C++ a string that reads 
+### the string into a float and checks if stof failed. Iterates how many variables
+### have been read (readLen)
 def floatCreateReturn(funcName, structName, first):
 	writeString = ""
+	### If not a part of a struct or array the return variable must be declared
 	if structName == "":
 		writeString += "\tfloat ret;\n"
 	writeString += "\ttry {\n"
@@ -261,14 +318,22 @@ def floatCreateReturn(funcName, structName, first):
 		else:
 			writeString += "\t\tret = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
+	### Write grading log
+	if structName == "":
+		writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
 
+### Function writes to the C++ file that the function returned but does not 
+### declare a return variable.
 def voidCreateReturn(funcName):
 	writeString = ""
+	writeString += "\tGRADING* << \"Returned from %s with void return type\" << endl;\n\n" % (funcName)
 	writeString += "\tif (strncmp(readBuffer,\"DONE\", sizeof(readBuffer))!=0) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s() received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	return writeString
 
+### Function takes in a string name and writes the returned string to a return
+### variable. Iterates how many variables have been read (readLen)
 def stringCreateReturn(funcName, structName, first):
 	writeString = ""
 	if structName == "":
@@ -283,8 +348,14 @@ def stringCreateReturn(funcName, structName, first):
 			writeString += "\tret = readBuffer;\n"
 		else:
 			writeString += "\tret = &(readBuffer[readLen])\n"
+	if structName == "":
+		writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
 
+### Function takes in an array name and looks in the type dictionary to see
+### what type it is, then calls the needed helper function the number of 
+### times the array is long. Iterates how many variables have been read from
+### the buffer
 def arrayCreateReturn(retType, funcName, typeDict, struct, readLen, first):
 	writeString = ""
 	typeObj = typeDict[retType]
@@ -292,19 +363,25 @@ def arrayCreateReturn(retType, funcName, typeDict, struct, readLen, first):
 		currentIndex = struct+"["+str(i)+"]"
 		if typeObj["member_type"] == "int":
 			writeString += intCreateReturn(funcName, currentIndex, first)
-			writeString += "\treadLen += string(%s).length()+1;\n" % (currentIndex)
+			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
+			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
 		elif typeObj["member_type"] == "float":
 			writeString += floatCreateReturn(funcName, currentIndex, first)
-			writeString += "\treadLen += string(%s).length()+1;\n" % (currentIndex)
+			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
+			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
 		elif typeObj["member_type"] == "string":
 			writeString += stringCreateReturn(funcName, currentIndex, first)
-			writeString += "\treadLen += %s.length()+1;\n" % (currentIndex)
+			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
+			writeString += "\treadLen += %s.length()+1;\n\n" % (currentIndex)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
 			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, readLen, first)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
 			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, readLen, first)
 	return writeString
 
+### Function takes in a struct argument and looks in the type dictionary to see
+### what the member types are, then loops through the members to call the 
+### needed helper function. Iterates readLen every time a variable is read.
 def structCreateReturn(retType, funcName, typeDict, struct, readLen, first):
 	writeString = ""
 	typeObj = typeDict[retType]
@@ -312,15 +389,18 @@ def structCreateReturn(retType, funcName, typeDict, struct, readLen, first):
 	for member in structMembers:
 		if member["type"] == "int":
 			writeString += intCreateReturn(funcName, struct+"."+member["name"], first)
-			writeString += "\treadLen += string(%s).length()+1;\n" % (member["name"])
+			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
+			writeString += "\treadLen += string(%s).length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif member["type"] == "float":
 			writeString += floatCreateReturn(funcName, struct+"."+member["name"], first)
-			writeString += "\treadLen += string(%s).length()+1;\n" % (member["name"])
+			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
+			writeString += "\treadLen += string(%s).length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif member["type"] == "string":
 			writeString += stringCreateReturn(funcName, struct + "." + member["name"], first)
-			writeString += "\treadLen += %s.length()+1;\n" % (member["name"])
+			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
+			writeString += "\treadLen += %s.length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif typeDict[member["type"]]["type_of_type"] == "array":
 			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], readLen, first)
