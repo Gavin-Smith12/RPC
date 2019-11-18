@@ -1,0 +1,217 @@
+<!DOCTYPE HTML>
+<!-- 
+ **********************************************************
+
+             TUFTS COMP 117 HOMEWORK ASSIGNMENT
+
+        Fill in your name, e-mail and answers to questions
+        in the sections provided below.
+
+          All questions are marked up: <li class="q">
+          All answers are marked up:   <li class="a">
+
+
+     PLEASE DO NOT MODIFY ANY THING OTHER THAN THE 
+     NAME, E-MAIL, AND ANSWER FIELDS (you may also add
+     css declarations in the <head> if you need them,
+     but usually you won't.
+
+ **********************************************************
+ -->
+
+
+<html>
+<head>
+<meta charset="utf-8"> 
+<title>Tufts COMP 117 Assignment &#8212; Remote Procedure Call Project Report</title>
+<link rel="stylesheet" type="text/css" href="http://www.cs.tufts.edu/comp/117/style/homework.css" />
+</head>
+
+<body class="homework">
+
+
+<!-- ******************************************************
+       YOU MUST FILL IN YOUR NAME, UTLN AND EMAIL BELOW!!
+         (You may copy this from an earlier assignment
+                         if you like)
+
+     ****************************************************** -->
+
+
+<div class="student">
+<p>
+<span class="label">Student1 name: </span>
+Gavin Smith
+<br>
+
+<span class="label">UTLN: </span>
+gsmith08
+<br>
+
+<span class="label">E-mail: </span>
+<!-- DON'T FORGET UP UPDATE THE MAILTO: URI BELOW ALONG WITH
+     YOUR EMAIL IN THE ANCHOR.  IT SHOULD LOOK LIKE:
+ <a href="mailto:lady.gaga@cs.tufts.edu">lady.gaga@cs.tufts.edu</a>
+--> 
+
+<a href="mailto:gavin.smith@tufts.edu">gavin.smith@tufts.edu</a>
+<br>
+<br>
+<br>
+<span class="label">Student2 name: </span>
+Ravi Serota
+<br>
+<span class="label">UTLN: </span>
+rserot01
+<br>
+
+<span class="label">E-mail: </span>
+<!-- DON'T FORGET UP UPDATE THE MAILTO: URI BELOW ALONG WITH
+     YOUR EMAIL IN THE ANCHOR.  IT SHOULD LOOK LIKE:
+ <a href="mailto:lady.gaga@cs.tufts.edu">lady.gaga@cs.tufts.edu</a>
+--> 
+
+<a href="mailto:ravi.serota@gmail.com">ravi.serota@gmail.com</a>
+
+<br>
+</p>
+</div>
+
+
+
+
+<div class="UpperLeftHeader">
+<p>Tufts COMP 117 (Spring 2019):
+<br>
+Internet-scale Distributed Systems
+</p>
+</div>
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - -
+        HOMEWORK TITLE
+  - -  - - - - - - - - - - - - - - - - - - - - - - -->
+
+
+<div class="headerdiv">
+<h1>
+Tufts COMP 117:<br>
+RPC Project Report
+</h1>
+</div>
+
+<!-- ******************************************************
+
+              PLEASE ANSWER QUESTIONS IN THE SECTIONS
+          LABELED class="a" (for answer)
+
+     ****************************************************** -->
+
+
+
+
+<div class="main">
+
+<h2 id="questions">Questions</h2>
+<!-- - - - - - - - - - - - - - - - - - - - - - - -
+        QUESTION
+  - -  - - - - - - - - - - - - - - - - - - - - - - -->
+<div class="qa">
+
+<ol class="qa">
+<li class="q">Did you implement an rpcgenerate program and does it handle all legal IDL files? If not, which test cases should we try in your submission  directory?</li>
+<li class="a">
+We did implement an rpcgenerate program and it should handle all legal IDL files.
+</li>
+
+<li class="q">What programming language did you use for your rpcgenerate program?</li>
+<li class="a">
+Put an X in the space next to your choice:
+<ul>
+  <li>_____ C++ (using the provided type framework)</li>
+  <li> X Python (using the provided <code>idl_to_json</code>)</li>
+  <li>_____ Ruby (using the provided <code>idl_to_json</code>)</li>
+</ul>
+</li>
+
+<li class="q">Briefly explain the protocol you use over TCP to request function calls and return the results.</li>
+<li class="a">
+The protocol we use over TCP to request function calls is that we read all of 
+the individual arguments from the function call into strings and write them over
+TCP individually as well. This means that for things like arrays or structs, each 
+of the sub-elements are also written seperately. For example, if there is an
+array of ten ints, they will all be put into their own strings and will all 
+have their own write calls over the network. Also, each argument is just 
+converted to a string, which can make getting the information a bit more bloated,
+but it ensures that everything is in the same format on both ends of the network.
+Then, the stub reads the arguments
+by reading from the buffer, and since each of the arguments were sent seperately,
+they are all null terminated, so when reading from the buffer we do not have 
+to know the lengths of anything. After each read the argument is put into
+the data structure it originally belonged to (since it was sent as a string) 
+and we increment an integer that tells us how much of the buffer has already 
+been read (and we can get this value from then afterwards getting the length
+of the string that was read). The function is then called and the return value
+is sent back in a similar fashion to how it was sent by the proxy initally, 
+and then the proxy reads the message sent over TCP the same way that the stub
+did. 
+</li>
+
+<li class="q">Did you get help from anyone other than your teammate? If "yes", then briefly explain who helped you and how.</li>
+<li class="a">
+No we did not receive help from anybody else.
+</li>
+
+
+<li class="q">(optional) Do you have any other comments on this assignment (e.g. was it worthwhile, what did you learn from it, do you have suggestions for improvment if the course is offered again)?</li>
+<li class="a">
+We thought that this assignment had similar strengths to the last one. First,
+having the assignment cover such a large scope required a large amount of planning
+beforehand, and even then there were many issues that arose while actually 
+doing the coding. This experience helps to increase our skills of planning large
+systems and dealing with issues when they arise during the project. Second, this
+project was good because it gave us some programming experience in a more commonly
+used language like python. The Tufts curriculum is very heavy in C and C++ so it
+is a nice repreive to be able to use something else, especially a language as 
+commonly used as python. Third, this assignment heavily rewards modularity. 
+We have found that in retrospect for both assignments that there were many
+opportunities to make our programs more modular, which would have increased
+readability and probably efficiency. Although it is hard to go back and refactor
+all of our code now, it does help to make sure that in the future we take more 
+stock in thinking about how we can make our code more modular.
+</li>
+
+</ol>
+
+<!-- * * * * * * * * * * * * * * * * * * * * * -->
+<!--         ADDITIONAL INFORMATION            -->
+<!-- * * * * * * * * * * * * * * * * * * * * * -->
+
+<h2 id="reportbody">ADDITIONAL INFORMATION</h2>
+
+<p>This will be just a brief overview of how we parsed through the arguments
+in the python as this is the bulk of the code that we wrote. For the cases
+of strings, ints, and floats the way that we parsed them is similarly 
+simple. When sending these arguments from the proxy to the stub we just 
+loop through the arguments and see what the types are, and for these types
+listed above we just convert them to strings and send them over. Then in the 
+stub we again loop through the arguments and do the same thing but opposite.
+This process gets much more complicated when we parse through arbitrarily deep
+arrays and structs. The process for parsing both of these is similar. If 
+an argument has a type of array it is looped through, and one has to look at 
+the type of the array indecies to see what to do next. If the array is of a simple
+type you can just read each index as the desired type, but if it is a struct or
+an array you have to look again at the JSON data. In the JSON data you then
+have to take the array type and look at our "typeDict" which is a list of 
+all of the types from the IDL. From this you just look at the type again and 
+repeat the same process. The only difference with structs is that each type
+is not the same, so for each loop you have to see what the new type is. In theory
+this code does not sound complicated but a lot of our python code is a bit jumbled,
+this is due to not accounting for modularity beforehand. Each of the functions
+where we loop through an array or struct to get all of its members could be 
+consolidated, but we did not think of this until it was too late.</p>
+
+</div>
+</div>
+</body>
+</html>
