@@ -134,13 +134,16 @@ def writeProxy(typeDict, functionList):
 
 		### Convert return to correct type
 		if func[0] == "int":
-			writeString += intCreateReturn(func[1])
+			writeString += intCreateReturn(func[1], "", 0)
 		elif func[0] == "float":
-			writeString += floatCreateReturn(func[1])
+			writeString += floatCreateReturn(func[1], "", 0)
 		elif func[0] == "string":
 			writeString += "string ret = readBuffer;\n"
 		elif func[0] == "void":
 			writeString += voidCreateReturn(func[1])
+		elif typeDict[func[0]]["type_of_type"] == "struct":
+			writeString += "\t%s ret;\n" % func[0]
+			writeString += structCreateReturn(func[0], func[1], typeDict, "ret", 0, True)
 
 		### Successful return statement and return
 		writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s successful return from remote call\");\n\n" % (fileProxy, func[1])
@@ -160,7 +163,7 @@ def createArg(arg, typeDict):
 	elif arg["type"] == "string":
 		ret += stringCreateArg(arg["name"])
 	elif typeDict[arg["type"]]["type_of_type"] == "array":
-		ret += arrayCreateArg(arg, typeDict, arg["name"])
+		ret += arrayCreateArg(arg["type"], typeDict, arg["name"])
 	elif typeDict[arg["type"]]["type_of_type"] == "struct":
 		ret += structCreateArg(arg, typeDict, arg["name"])
 	else:
@@ -171,7 +174,7 @@ def createArg(arg, typeDict):
 def numCreateArg(argName):
 	writeString = ""
 	nobracketsArgName = argName.replace('[', '').replace(']', '')
-	writeString += "\tstring %sStr = to_string(%s);\n" % (nobracketsArgName, argName)
+	writeString += "\tstring %sStr = to_string(%s);\n" % (nobracketsArgName.replace('.', ''), argName)
 	writeString += writeArg(nobracketsArgName)
 	writeString += "\n"
 	return writeString
@@ -179,15 +182,16 @@ def numCreateArg(argName):
 def stringCreateArg(argName):
 	writeString = ""
 	nobracketsArgName = argName.replace('[', '').replace(']', '')
-	writeString += "\tstring %sStr = %s;\n" % (nobracketsArgName, argName)
+	writeString += "\tstring %sStr = %s;\n" % (nobracketsArgName.replace('.', ''), argName)
 	writeString += writeArg(nobracketsArgName)
 	writeString += "\n"
 	return writeString
 
 def arrayCreateArg(arg, typeDict, name):
 	writeString = ""
-	typeObj = typeDict[arg["type"]]
-	memberType = typeObj["member_type"]
+	typeObj = typeDict[arg]
+	if typeObj["type_of_type"] != "builtin":
+		memberType = typeObj["member_type"]
 	elementCount = int(typeObj["element_count"])
 	arrayName = name
 	for i in range(elementCount):
@@ -196,58 +200,66 @@ def arrayCreateArg(arg, typeDict, name):
 			writeString += numCreateArg(newName)
 		elif memberType == "string":
 			writeString += stringCreateArg(newName)
-		elif memberType[:1] == "_":
-			writeString += nDArrayArg(newName, memberType)
+		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
+			writeString += arrayCreateArg(memberType, typeDict, newName)
+		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
+			structDict = {'type': memberType, 'name': name}
+			writeString += structCreateArg(structDict, typeDict, newName)
+
 	return writeString
 
 def structCreateArg(arg, typeDict, name):
 	writeString = ""
 	typeObj = typeDict[arg["type"]]
 	structMembers = typeObj["members"]
-	structName = arg["name"]
+	structName = name
 	for member in structMembers:
 		if member["type"] == "int" or member["type"] == "float":
 			writeString += numCreateArg(structName + "." + member["name"])
 		elif member["type"] == "string":
 			writeString += stringCreateArg(structName + "." + member["name"])
 		elif typeDict[member["type"]]["type_of_type"] == "array":
-			writeString += arrayCreateArg(member, typeDict, structName + "." + member["name"])
+			writeString += arrayCreateArg(member["type"], typeDict, structName + "." + member["name"])
 		elif typeDict[member["type"]]["type_of_type"] == "struct":
 			writeString += structCreateArg(member, typeDict, structName + "." + member["name"])
-
-	return writeString
-
-def nDArrayArg(newName, memberType):
-	writeString = ""
-	firstBracket = memberType[memberType.find('['):][1:]
-	elementCount = firstBracket[:firstBracket.find(']')]
-	arrayType = memberType.split('[')[0][2:]
-	for i in range(int(elementCount)):
-		if firstBracket.find("[") != -1:
-			writeString += nDArrayArg((newName+"["+str(i)+"]"), "__"+arrayType+firstBracket[firstBracket.find(']'):][1:])
-			continue
-		if arrayType == "int" or memberType == "float":
-			writeString += numCreateArg(newName+"["+str(i)+"]")
-		elif arrayType == "string":
-			writeString += stringCreateArg(newName+"["+str(i)+"]")
 	return writeString
 
 def writeArg(argName):
 	return "\tRPCPROXYSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n" % (argName, argName)
 
-def intCreateReturn(funcName):
+def intCreateReturn(funcName, structName, first):
 	writeString = ""
-	writeString += "\tint ret;\n"
+	if structName == "":
+		writeString += "\tint ret;\n"	
 	writeString += "\ttry {\n"
-	writeString += "\t\tret = stoi(readBuffer);\n\t } catch(invalid_argument& e) {\n"
+	if structName != "":
+		if first:
+			writeString += "\t\t%s = stoi(readBuffer);\n\t } catch(invalid_argument& e) {\n" % structName
+		else:
+			writeString += "\t\t%s = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n" % structName
+	else:
+		if first:
+			writeString += "\t\tret = stoi(readBuffer);\n\t } catch(invalid_argument& e) {\n"
+		else:
+			writeString += "\t\tret = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	return writeString
 
-def floatCreateReturn(funcName):
+def floatCreateReturn(funcName, structName, first):
 	writeString = ""
-	writeString += "\tfloat ret;\n"
+	if structName == "":
+		writeString += "\tfloat ret;\n"
 	writeString += "\ttry {\n"
-	writeString += "\t\tret = stof(readBuffer);\n\t } catch(invalid_argument& e) {\n"
+	if structName != "":
+		if first:
+			writeString += "\t\t%s = stof(readBuffer);\n\t } catch(invalid_argument& e) {\n" % structName
+		else:
+			writeString += "\t\t%s = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n" % structName
+	else:
+		if first:
+			writeString += "\t\tret = stof(readBuffer);\n\t } catch(invalid_argument& e) {\n"
+		else:
+			writeString += "\t\tret = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	return writeString
 
@@ -255,6 +267,65 @@ def voidCreateReturn(funcName):
 	writeString = ""
 	writeString += "\tif (strncmp(readBuffer,\"DONE\", sizeof(readBuffer))!=0) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s() received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
+	return writeString
+
+def stringCreateReturn(funcName, structName, first):
+	writeString = ""
+	if structName == "":
+		writeString += "\tstring ret;\n"
+	if structName != "":
+		if first:
+			writeString += "\t%s = readBuffer;\n" % structName
+		else:
+			writeString += "\t%s = &(readBuffer[readLen])\n" % structName
+	else:
+		if first:
+			writeString += "\tret = readBuffer;\n"
+		else:
+			writeString += "\tret = &(readBuffer[readLen])\n"
+	return writeString
+
+def arrayCreateReturn(retType, funcName, typeDict, struct, readLen, first):
+	writeString = ""
+	typeObj = typeDict[retType]
+	for i in range(typeObj["element_count"]):
+		currentIndex = struct+"["+str(i)+"]"
+		if typeObj["member_type"] == "int":
+			writeString += intCreateReturn(funcName, currentIndex, first)
+			writeString += "\treadLen += string(%s).length()+1;\n" % (currentIndex)
+		elif typeObj["member_type"] == "float":
+			writeString += floatCreateReturn(funcName, currentIndex, first)
+			writeString += "\treadLen += string(%s).length()+1;\n" % (currentIndex)
+		elif typeObj["member_type"] == "string":
+			writeString += stringCreateReturn(funcName, currentIndex, first)
+			writeString += "\treadLen += %s.length()+1;\n" % (currentIndex)
+		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
+			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, readLen, first)
+		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
+			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, readLen, first)
+	return writeString
+
+def structCreateReturn(retType, funcName, typeDict, struct, readLen, first):
+	writeString = ""
+	typeObj = typeDict[retType]
+	structMembers = typeObj["members"]
+	for member in structMembers:
+		if member["type"] == "int":
+			writeString += intCreateReturn(funcName, struct+"."+member["name"], first)
+			writeString += "\treadLen += string(%s).length()+1;\n" % (member["name"])
+			first = False
+		elif member["type"] == "float":
+			writeString += floatCreateReturn(funcName, struct+"."+member["name"], first)
+			writeString += "\treadLen += string(%s).length()+1;\n" % (member["name"])
+			first = False
+		elif member["type"] == "string":
+			writeString += stringCreateReturn(funcName, struct + "." + member["name"], first)
+			writeString += "\treadLen += %s.length()+1;\n" % (member["name"])
+			first = False
+		elif typeDict[member["type"]]["type_of_type"] == "array":
+			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], readLen, first)
+		elif typeDict[member["type"]]["type_of_type"] == "struct":
+			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], readLen, first)
 	return writeString
 
 def writeStub(typeDict, functionList):
