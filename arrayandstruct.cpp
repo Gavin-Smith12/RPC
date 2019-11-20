@@ -1,21 +1,15 @@
 // --------------------------------------------------------------
 //
-//                        arithmetic.cpp
+//                        arrayandstruct.cpp
 //
-//        Author: Noah Mendelsohn         
+//        Authors: Gavin Smith and Ravi Serota       
 //   
 //
-//        Trivial implementations of the routines declared
-//        in arithmetic.idl. These are for testing: they
-//        just print messages.
-//
-//       Copyright: 2012 Noah Mendelsohn
+//        Implementations of functions in arrayandstruct.idl.
+//        Purpose it to deal with structs and their members.
 //     
 // --------------------------------------------------------------
 
-// IMPORTANT! WE INCLUDE THE IDL FILE AS IT DEFINES THE INTERFACES
-// TO THE FUNCTIONS WE'RE IMPLEMENTING. THIS MAKES SURE THE
-// CODE HERE ACTUALLY MATCHES THE REMOTED INTERFACE
 #include <string>
 #include <iostream>
 
@@ -23,6 +17,7 @@ using namespace std;
 
 #include "arrayandstruct.idl"
 
+// Takes in the members of the test1 struct and returns the struct itself.
 test1 returnStruct(int x, float y, string z) {
     struct test1 ret;
     ret.a = x;
@@ -31,6 +26,7 @@ test1 returnStruct(int x, float y, string z) {
     return ret;
 }
 
+// Sums a large array and returns the sum.
 int sumLargeArray(int x[100]) {
     int ret = 0;
     for(int i = 0; i < 100; i++) {
@@ -39,10 +35,12 @@ int sumLargeArray(int x[100]) {
     return ret;
 }
 
+//Returns the member contained within the struct member of the argument.
 string getStructMember(test2 x) {
     return x.structarr[0].c;
 }
 
+// Returns the entire struct member from the given argument.
 test1 returnMemberStruct(test2 x) {
     return x.structarr[1];
 }
