@@ -557,21 +557,22 @@ def createStringReturn(retName, varName):
 def createStructReturn(retType, retName, typeDict):
 	# To do: change fullName variable name
 	writeString = ""
-	for m in typeDict[retType]["members"]:
+	members = typeDict[retType]["members"]
+	for m in members:
 		mName = m["name"]
 		mType = m["type"]
 		strName = "%s%s" % (retName, mName)
 		fullName = "%s.%s" % (retName, mName)
 		if mType == "int":
-			writeString += createIntReturn(strName, fullName)
+			writeString += createIntReturn(strName, fullName)[0]
 		elif mType == "float":
-			writeString += createFloatReturn(strName, fullName)
+			writeString += createFloatReturn(strName, fullName)[0]
 		elif mType == "string":
-			writeString += createStringReturn(strName, fullName)
+			writeString += createStringReturn(strName, fullName)[0]
 		elif typeDict[mType]["type_of_type"] == "array":
-			writeString += createArrayReturn(mType, fullName, typeDict)
+			writeString += createArrayReturn(mType, fullName, typeDict)[0]
 		elif typeDict[mType]["type_of_type"] == "struct":
-			writeString += createStructReturn(mType, fullName, typeDict)
+			writeString += createStructReturn(mType, fullName, typeDict)[0]
 		# RPCSOCKETWRITE
 		writeString += "\tRPCSTUBSOCKET->write(%s.c_str(), %s.length()+1);\n\n" % (strName, strName)
 	return writeString
@@ -586,9 +587,9 @@ def createArrayReturn(retType, retName, typeDict):
 	while typeDict[memberType]["type_of_type"] == "array":
 		depth += 1
 		memberType = typeDict[memberType]["member_type"]
-	writeString += arrayNDToArgType(depth, argType, argName, typeDict)
+	writeString += arrayNDToArgType(depth, retType, retName, typeDict)
 
-	bracketString = "%s[i]" % argName
+	bracketString = "%s[i]" % retName
 	for i in range(depth - 1):
 		bracketString += "[%s]" % chr(ord('i') + (i + 1))
 	
@@ -599,7 +600,7 @@ def createArrayReturn(retType, retName, typeDict):
 	elif memberType == "string":
 		writeString += createStringReturn(bracketString, bracketString)
 	elif typeDict[memberType]["type_of_type"] == "struct":
-		writeString += createStructReturn(typeDict[memberType], bracketString, typeDict)
+		writeString += createStructReturn(memberType, bracketString, typeDict)
 
 	for i in range(depth, 0, -1):
 		writeString += "\t" * i + "}\n"
