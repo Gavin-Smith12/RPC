@@ -109,7 +109,10 @@ def writeProxy(typeDict, functionList):
 		writeString += "\n"
 
 		### Debug statement for invocation then wait
-		writeString = writeString + "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invocation sent, waiting for response\");\n\n" % (fileProxy, func[1])
+		writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invocation sent, waiting for response\");\n\n" % (fileProxy, func[1])
+
+		### Wait for the server to send all messages
+		writeString += "\tusleep(500000);\n\n"
 
 		### Read from server
 		writeString += "\tRPCPROXYSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
@@ -176,19 +179,20 @@ def createFuncDec(func):
 ### converts what is read from the server to that type.
 def convertReturnType(func, typeDict):
 	writeString = ""
+	first = False
 	if func[0] != "void":
 		writeString += "\tint readLen = 0;\n\n"
 	if func[0] == "int":
-		writeString += intCreateReturn(func[1], "", 0)
+		writeString += intCreateReturn(func[1], "", first)
 	elif func[0] == "float":
-		writeString += floatCreateReturn(func[1], "", 0)
+		writeString += floatCreateReturn(func[1], "", first)
 	elif func[0] == "string":
 		writeString += "string ret = readBuffer;\n"
 	elif func[0] == "void":
 		writeString += voidCreateReturn(func[1])
 	elif typeDict[func[0]]["type_of_type"] == "struct":
 		writeString += "\t%s ret;\n" % func[0]
-		writeString += structCreateReturn(func[0], func[1], typeDict, "ret", True)
+		writeString += structCreateReturn(func[0], func[1], typeDict, "ret", first)
 	return writeString
 
 
@@ -353,12 +357,12 @@ def stringCreateReturn(funcName, structName, first):
 		if first:
 			writeString += "\t%s = readBuffer;\n" % structName
 		else:
-			writeString += "\t%s = &(readBuffer[readLen])\n" % structName
+			writeString += "\t%s = &(readBuffer[readLen]);\n" % structName
 	else:
 		if first:
 			writeString += "\tret = readBuffer;\n"
 		else:
-			writeString += "\tret = &(readBuffer[readLen])\n"
+			writeString += "\tret = &(readBuffer[readLen]);\n"
 	#if structName == "":
 		#writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
@@ -376,14 +380,17 @@ def arrayCreateReturn(retType, funcName, typeDict, struct, first):
 			writeString += intCreateReturn(funcName, currentIndex, first)
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
+			first = False
 		elif typeObj["member_type"] == "float":
 			writeString += floatCreateReturn(funcName, currentIndex, first)
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
+			first = False
 		elif typeObj["member_type"] == "string":
 			writeString += stringCreateReturn(funcName, currentIndex, first)
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += %s.length()+1;\n\n" % (currentIndex)
+			first = False
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
 			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, first)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
@@ -442,7 +449,7 @@ def createStubFunction(func):
 	writeString += createReturnDecl(func[0])
 	
 	### Declare length variable for parsing readBuffer
-	if len(func[2]) > 1:
+	if len(func[2]) > 0:
 		writeString += "\tint readLen = 0;\n"
 
 	writeString += "\n"

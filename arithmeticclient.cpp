@@ -79,19 +79,6 @@ const int serverArg = 1;     // server name is 1st arg
 //                           main program
 //
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- 
-struct test3 {
-    string yay;
-};
-
-struct test2 {
-    test3 woo[2][2];
-};
-
-struct test1 {
-    test2 t2;
-    test3 t3[2]
-};
 
 int 
 main(int argc, char *argv[]) {
@@ -134,19 +121,19 @@ main(int argc, char *argv[]) {
        printf("Calling add()\n");
        string teststring = "hello";
        struct test3 c = {teststring};
-       test3 testarray[2][2];
+       struct test2 b;
        for(int i = 0; i < 2; i++) {
           for(int j = 0; j < 2; j++) {
-            testarray[i][j] = c;
+            b.woo[i][j] = c;
           }
        }
-       test3 testarray2[2];
-       testarray2[0] = c;
-       testarray2[1] = c;
-       struct test2 b = {testarray};
-       struct test1 a = {b, testarray2}
-       test1 = add(a);                          // remote call (we hope!)
+       struct test1 a;
+       a.t2 = b;
+       a.t3[0] = c;
+       a.t3[1] = c;
+       a = add(a);                          // remote call (we hope!)
        printf("Returned from add().\n");
+       
 
        // 
        // Call (possibly remote) subtract

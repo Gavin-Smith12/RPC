@@ -23,24 +23,12 @@ using namespace std;
 
 #include "arithmetic.idl"
 
-struct test3 {
-    string yay;
-};
-
-struct test2 {
-    test3 woo[2][2];
-};
-
-struct test1 {
-    test2 t2;
-    test3 t3[2]
-};
-
 test1 add(test1 a) {
     cout << "the string is " << a.t2.woo[0][0].yay << endl;
     a.t2.woo[0][0].yay = "goodbye";
-    cout << "the string is now" << a.t2.woo[0][0].yay << endl;
-    return test1;
+    cout << "the string is now " << a.t2.woo[0][0].yay << endl;
+    cout << "the other string is " << a.t2.woo[0][1].yay << endl;
+    return a;
 }   
 
 int subtract(int x, int y) {
