@@ -636,18 +636,18 @@ def createFunctionCall(func):
 	return writeString
 
 def readInt(argName, first, tabs):
-	writeString = "\t" * tabs + "%s = stoi(string(&(readBuffer[readLen])));\n" % (argName)
-	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n\n" % (argName)
+	writeString = "\t" * (tabs+1) + "%s = stoi(string(&(readBuffer[readLen])));\n" % (argName)
+	writeString += "\t" * (tabs+1) + "readLen += to_string(%s).length()+1;\n\n" % (argName)
 	return (writeString, False)
 
 def readFloat(argName, first, tabs):
-	writeString = "\t" * tabs + "%s = stof(string(&(readBuffer[readLen])));\n" % (argName)
-	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n\n" % (argName)
+	writeString = "\t" * (tabs+1) + "%s = stof(string(&(readBuffer[readLen])));\n" % (argName)
+	writeString += "\t" * (tabs+1) + "readLen += to_string(%s).length()+1;\n\n" % (argName)
 	return (writeString, False)
 
 def readString(argName, first, tabs):
-	writeString = "\t" * tabs + "%s = &(readBuffer[readLen]);\n" % (argName)
-	writeString += "\t" * tabs + "readLen += %s.length()+1;\n\n" % (argName)
+	writeString = "\t" * (tabs+1) + "%s = &(readBuffer[readLen]);\n" % (argName)
+	writeString += "\t" * (tabs+1) + "readLen += %s.length()+1;\n\n" % (argName)
 	return (writeString, False)
 
 def readStruct(first, argType, argName, typeDict):
@@ -678,7 +678,6 @@ def readArray(first, argType, argName, typeDict):
 	typeObj = typeDict[argType]
 	memberType = typeObj["member_type"]
 
-	writeString += "\tstring temp;\n"
 	depth = 1
 	while typeDict[memberType]["type_of_type"] == "array":
 		depth += 1
