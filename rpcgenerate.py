@@ -74,13 +74,15 @@ def createFile(fileName):
 	proxyComment += "\tFile sends function names and arguments to server to be computed "
 	proxyComment += "and then\n\treturns the value returned by the server.\n*/\n\n" 
 
-	headers = proxyComment + headers
+	stubComment = "/*\n\tThis file is %s.\n\tWritten by Gavin Smith and Ravi Serota.\n" % fileStub
+	stubComment += "\tFile takes in functions and arguments and gives them to the cpp file"
+	stubComment += "to be\ncomputed and then returns the result to the client.\n*/\n\n" 
 
 	with open(fileProxy, 'w+') as file:
-		file.write(headers % ("proxy", fileName))
+		file.write(proxyComment+headers % ("proxy", fileName))
 
 	with open(fileStub, 'w+') as file:
-		file.write(headers % ("stub", fileName))
+		file.write(stubComment+headers % ("stub", fileName))
 
 ### Main function to write the entire proxy file. Takes in a dictionary of the 
 ### JSON data for the functions and the list of functions needed to be written.
