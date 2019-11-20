@@ -406,6 +406,8 @@ def structCreateReturn(retType, funcName, typeDict, struct):
 			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"])
 	return writeString
 
+### Function takes in the list of types and list of functions and writes
+### all of the functions for the stub file.
 def writeStub(typeDict, functionList):
 
 	writeString = ""
@@ -417,6 +419,9 @@ def writeStub(typeDict, functionList):
 		file.write(writeString)
 		file.write(writeSupportFuncs(functionList))
 
+### Function takes in individual functions within the stub and writes the
+### function reading from the client, passing the info to the function, 
+### and then finally writing the return statement to the clien.
 def createStubFunction(func):
 	writeString = "void __%s(" % func[1]
 	writeString += ") {\n"
@@ -425,7 +430,9 @@ def createStubFunction(func):
 	if len(func[2]) > 0:
 		writeString += "\tchar readBuffer[512];\n\n"
 
+	### Declare Arguments
 	writeString += stubCreateArgDecls(func[2], typeDict)
+	### Create return type declaration
 	writeString += createReturnDecl(func[0])
 	
 	### Declare length variable for parsing readBuffer
@@ -440,8 +447,11 @@ def createStubFunction(func):
 	if len(func[2]) > 0:
 		writeString += "\tRPCSTUBSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
 
+	### Read arguments from the client
 	writeString += readArgsFromNetwork(func[2])
+	### Call the function itself
 	writeString += createFunctionCall(func)
+	### Create return statement to the client
 	writeString += createReturnStatement(func[0], "ret", typeDict)
 
 	writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: returned from %s() -- responding to client\");\n" % (fileStub, func[1])
@@ -449,17 +459,22 @@ def createStubFunction(func):
 
 	return writeString
 
+### Function loops over the arguments in a function and creates the declarations
+### for the required data types.
 def stubCreateArgDecls(args, typeDict):
 	writeString = ""
 	for arg in args:
 		writeString += stubCreateArgDecl(arg, typeDict)
 	return writeString
 
+### Function looks at the type of the given argument and creates the needed 
+### variable. 
 def stubCreateArgDecl(arg, typeDict):
 	writeString = ""
 	typeOfType = typeDict[arg["type"]]["type_of_type"]
 	if typeOfType == "builtin":
 		writeString += "\t%s %s;\n" % (arg["type"], arg["name"])
+	### If the argument is an array find out how many dimensions it is.
 	elif typeOfType == "array":
 		memberType = typeDict[arg["type"]]["member_type"]
 		bracketString = "[%s]" % typeDict[arg["type"]]["element_count"]
@@ -472,6 +487,8 @@ def stubCreateArgDecl(arg, typeDict):
 		writeString += "\tstruct %s %s;\n" % (arg["type"], arg["name"])
 	return writeString
 
+### Function takes in the return type of the function and creates the needed
+### variable.
 def createReturnDecl(returnType):
 	writeString = ""
 	if returnType != "void":
@@ -481,6 +498,8 @@ def createReturnDecl(returnType):
 			writeString += "\t%s ret;\n" % returnType
 	return writeString
 
+### Function is given an argument and looks at its type, prints the type if 
+### a simple tuype and loops if a complex type using a helper function.
 def readArgsFromNetwork(args):
 	writeString = "\t//\n\t// Read args from readBuffer\n\t//\n"
 	first = True;
@@ -513,6 +532,8 @@ def readArgsFromNetwork(args):
 
 	return writeString
 
+### Function takes in the return type and creates the needed variable(s)
+### to write the return statement back to the client.
 def createReturnStatement(retType, retName, typeDict):
 	writeString = ""
 	if retType == "void":
@@ -530,36 +551,47 @@ def createReturnStatement(retType, retName, typeDict):
 
 	return writeString
 
+### Function writes DONE to the client if a void function completes
 def createVoidReturn():
 	writeString = "\tstring done = \"DONE\";\n"
 	writeString += "\tRPCSTUBSOCKET->write(done, done.length()+1);\n"
 	return writeString
 
+### Function takes in a variable name and changes that variable from an int
+### to a string and writes that to the client.
 def createIntReturn(retName, varName):
+	### Have to take out brackets and . so it can be written.
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
 	return writeString
 
+### Function takes in a variable name and changes that variable from a float
+### to a string and writes that to the client.
 def createFloatReturn(retName, varName):
+	### Have to take out brackets and . so it can be written.
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
 	return writeString
 
+### Function takes in a variable name and writes the string to the client.
 def createStringReturn(retName, varName):
+	### Have to take out brackets and . so it can be written.
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = %s;\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
 	return writeString
 
+### Function takes in a return type that is a struct and loops through its 
+### members and converts them all to strings to be written back to the client.
 def createStructReturn(retType, retName, typeDict):
-	# To do: change fullName variable name
 	writeString = ""
 	members = typeDict[retType]["members"]
 	for m in members:
 		mName = m["name"]
 		mType = m["type"]
+		### Need name with . and without, one for variable and one for string name
 		strName = "%s%s" % (retName, mName)
 		fullName = "%s.%s" % (retName, mName)
 		if mType == "int":
@@ -576,12 +608,17 @@ def createStructReturn(retType, retName, typeDict):
 			print "Error"
 	return writeString
 
+### Function takes in a return type that is an array and loops through all of
+### the elements to convert them to strings to be written to the client.
 def createArrayReturn(retType, retName, typeDict):
 	writeString = ""
+	### Type of members and number of elements.
 	memberType = typeDict[retType]["member_type"]
 	elemCount  = typeDict[retType]["element_count"]
 
 	depth = 1
+	### Figure out if the array is multi-dimensional to find if need to make
+	### multiple for loops
 	while typeDict[memberType]["type_of_type"] == "array":
 		depth += 1
 		memberType = typeDict[memberType]["member_type"]
@@ -605,6 +642,8 @@ def createArrayReturn(retType, retName, typeDict):
 	writeString += "\n"
 	return writeString
 
+### Function takes in a depth and an arg type and creates for loops for a 
+### multidimensional array to be populated to be read or written to the client.
 def arrayNDToArgType(depth, argType, argName, typeDict):
 	writeString = ""
 	iterVar = 'i'
@@ -616,6 +655,8 @@ def arrayNDToArgType(depth, argType, argName, typeDict):
 		argType = typeDict[argType]["member_type"]
 	return writeString
 
+### Function takes in a function and writes the actual function call (to the 
+### .cpp file) and gets return (if needed).
 def createFunctionCall(func):
 	writeString = ""
 	firstArg = True
@@ -633,21 +674,27 @@ def createFunctionCall(func):
 
 	return writeString
 
+### Takes in an argument name and reads in an integer from the client.
 def readInt(argName, first, tabs):
 	writeString = "\t" * tabs + "%s = stoi(string(&(readBuffer[readLen])));\n" % (argName)
 	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n" % (argName)
 	return (writeString, False)
 
+### Takes in an argument name and reads in a float from the client.
 def readFloat(argName, first, tabs):
 	writeString = "\t" * tabs + "%s = stof(string(&(readBuffer[readLen])));\n" % (argName)
 	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n" % (argName)
 	return (writeString, False)
 
+### Takes in an argument name and reads a string from the client.
 def readString(argName, first, tabs):
 	writeString = "\t" * tabs + "%s = &(readBuffer[readLen]);\n" % (argName)
 	writeString += "\t" * tabs + "readLen += %s.length()+1;\n" % (argName)
 	return (writeString, False)
 
+### Takes in an argument name that is a struct and loops through the members,
+### creating variables for each of the members so that they can be passed
+### to the actual function call.
 def readStruct(first, argType, argName, typeDict):
 	members = typeDict[argType]["members"]
 	writeString = ""
@@ -671,6 +718,9 @@ def readStruct(first, argType, argName, typeDict):
 
 	return (writeString, False)
 
+### Takes in an argument name that is an array and loops through the eleements,
+### creating variables for each of the elements so that they can be passed
+### to the actual function call.
 def readArray(first, argType, argName, typeDict):
 	writeString = ""
 	typeObj = typeDict[argType]
@@ -699,6 +749,8 @@ def readArray(first, argType, argName, typeDict):
 
 	return (writeString, False)
 
+### Writes all of the support functions needed for the stub to be able to 
+### function. All this code was given to us.
 def writeSupportFuncs(functionList):
 	writeString = "void getFunctionNamefromStream();\n\n"
 	writeString += "void __badFunction(char *functionName) {\n"
@@ -735,6 +787,9 @@ def writeSupportFuncs(functionList):
 	writeString += "\t\tthrow C150Exception(\"%s: method name not null terminated or too long\");\n}" % fileStub[:-4]
 	return writeString
 
+### Given a depth and an argument name reads a multi-dimensional array from
+### the client and makes variables for all of the elements so that they 
+### can be passed to the actual function call.
 def readNDArray(depth, argType, argName, typeDict):
 	writeString = ""
 	iterVar = 'i'
@@ -746,6 +801,7 @@ def readNDArray(depth, argType, argName, typeDict):
 		argType = typeDict[argType]["member_type"]
 	return writeString
 
+### Main function creates proxy and stub files using helper functions.
 if __name__ == "__main__":
 		 
 	if len(sys.argv) != 2:
