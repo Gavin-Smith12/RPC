@@ -48,7 +48,7 @@ def createFunctionsList(decls):
 
 		# Make a string of form:  "type1 arg1, type2 arg2" for use in function sig
 		argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
-		
+
 		functionList.append((sig["return_type"], name, args))
 
 	return functionList
@@ -93,23 +93,9 @@ def writeProxy(typeDict, functionList):
 	### Create declaration line of function
 	for func in functionList:
 		writeString = createFuncDec(func)
-		declaredFunc = writeString[:-2]
 
-		### Write grading log
-		writeString += "\n\t//\n\t//  DO THIS FIRST OR YOUR ASSIGNMENT WON'T BE GRADED!\n"
-		writeString += "\t//\n\n\tGRADEME(argc, argv);\n\n"
-
-		### Grading log for invoking function
-		writeString += "\t*GRADING << \"Invoking: %s\" << endl;\n\n" % (declaredFunc)
-
-		### Create read buffer
-		if func[0] == "void":
-			writeString += "\tchar readBuffer[5];\n\n"
-		else:
-			writeString += "\tchar readBuffer[512];\n\n"
-
-		### Debug statement for starting write
-		writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invoked\");\n\n" % (fileProxy, func[1])
+		### Write beginning of file(contains grading/debug statements + readBuffer)
+		writeString += writeProxyStart(writeString[:-2], func)
 
 		### Writing function and arguments
 		writeString += "\tRPCPROXYSOCKET->write(\"%s\", strlen(\"%s\")+1);\n\n" % (func[1], func[1])
@@ -139,6 +125,25 @@ def writeProxy(typeDict, functionList):
 
 		with open(fileProxy, "a") as file:
 			file.write(writeString)
+
+### Function writes boilerplate statements to the beginning of each proxy function
+def writeProxyStart(declaredFunc, func):
+	### Write grading log
+	writeString = "\n\t//\n\t//  DO THIS FIRST OR YOUR ASSIGNMENT WON'T BE GRADED!\n"
+	writeString += "\t//\n\n\tGRADEME(argc, argv);\n\n"
+
+	### Grading log for invoking function
+	writeString += "\t*GRADING << \"Invoking: %s\" << endl;\n\n" % (declaredFunc)
+
+	### Create read buffer
+	if func[0] == "void":
+		writeString += "\tchar readBuffer[5];\n\n"
+	else:
+		writeString += "\tchar readBuffer[512];\n\n"
+
+	### Debug statement for starting write
+	writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invoked\");\n\n" % (fileProxy, func[1])
+	return writeString
 
 ### Function creates the function declaration by printing the function type and
 ### name and then loops through the arguments, printing each.
