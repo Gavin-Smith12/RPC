@@ -131,12 +131,12 @@ def writeProxy(typeDict, functionList):
 ### Function writes boilerplate statements to the beginning of each proxy function
 def writeProxyStart(declaredFunc, func):
 	### Write grading log
-	writeString = "\n\t//\n\t//  DO THIS FIRST OR YOUR ASSIGNMENT WON'T BE GRADED!\n"
-	writeString += "\t//\n\n\tGRADEME(argc, argv);\n\n"
+	#writeString = "\n\t//\n\t//  DO THIS FIRST OR YOUR ASSIGNMENT WON'T BE GRADED!\n"
+	#writeString += "\t//\n\n\tGRADEME(argc, argv);\n\n"
 
 	### Grading log for invoking function
-	writeString += "\t*GRADING << \"Invoking: %s\" << endl;\n\n" % (declaredFunc)
-
+	#writeString += "\t*GRADING << \"Invoking: %s\" << endl;\n\n" % (declaredFunc)
+	writeString = ""
 	### Create read buffer
 	if func[0] == "void":
 		writeString += "\tchar readBuffer[5];\n\n"
@@ -176,6 +176,8 @@ def createFuncDec(func):
 ### converts what is read from the server to that type.
 def convertReturnType(func, typeDict):
 	writeString = ""
+	if func[0] != "void":
+		writeString += "\tint readLen = 0;\n\n"
 	if func[0] == "int":
 		writeString += intCreateReturn(func[1], "", 0)
 	elif func[0] == "float":
@@ -215,7 +217,7 @@ def numCreateArg(argName):
 	### If the argument is part of an array take away the brackets as data
 	### names cannot have brackets in them.
 	nobracketsArgName = argName.replace('[', '').replace(']', '')
-	writeString += "\t*GRADING << \"Writing %s with value: \" << %s << endl;\n" % (argName, argName)
+	#writeString += "\t*GRADING << \"Writing %s with value: \" << %s << endl;\n" % (argName, argName)
 	writeString += "\tstring %sStr = to_string(%s);\n" % (nobracketsArgName.replace('.', ''), argName)
 	writeString += writeArg(nobracketsArgName)
 	writeString += "\n"
@@ -228,7 +230,7 @@ def stringCreateArg(argName):
 	### If the argument is part of an array take away the brackets as strings
 	### cannot have brackets in their name.
 	nobracketsArgName = argName.replace('[', '').replace(']', '')
-	writeString += "\t*GRADING << \"Writing %s with value: \" << %s << endl;\n" % (argName, argName)
+	#writeString += "\t*GRADING << \"Writing %s with value: \" << %s << endl;\n" % (argName, argName)
 	writeString += "\tstring %sStr = %s;\n" % (nobracketsArgName.replace('.', ''), argName)
 	writeString += writeArg(nobracketsArgName)
 	writeString += "\n"
@@ -279,6 +281,7 @@ def structCreateArg(arg, typeDict, name):
 
 ### Generic function to write the argument to the server.
 def writeArg(argName):
+	argName = argName.replace('.', '')
 	return "\tRPCPROXYSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n" % (argName, argName)
 
 ### Function takes in an int name and writes to the C++ a string that reads 
@@ -302,8 +305,8 @@ def intCreateReturn(funcName, structName, first):
 			writeString += "\t\tret = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	### Write grading log
-	if structName == "":
-		writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
+	#if structName == "":
+		#writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
 
 ### Function takes in a float name and writes to the C++ a string that reads 
@@ -327,15 +330,15 @@ def floatCreateReturn(funcName, structName, first):
 			writeString += "\t\tret = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	### Write grading log
-	if structName == "":
-		writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
+	#if structName == "":
+		#writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
 
 ### Function writes to the C++ file that the function returned but does not 
 ### declare a return variable.
 def voidCreateReturn(funcName):
 	writeString = ""
-	writeString += "\tGRADING* << \"Returned from %s with void return type\" << endl;\n\n" % (funcName)
+	#writeString += "\tGRADING* << \"Returned from %s with void return type\" << endl;\n\n" % (funcName)
 	writeString += "\tif (strncmp(readBuffer,\"DONE\", sizeof(readBuffer))!=0) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s() received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	return writeString
@@ -356,8 +359,8 @@ def stringCreateReturn(funcName, structName, first):
 			writeString += "\tret = readBuffer;\n"
 		else:
 			writeString += "\tret = &(readBuffer[readLen])\n"
-	if structName == "":
-		writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
+	#if structName == "":
+		#writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
 
 ### Function takes in an array name and looks in the type dictionary to see
@@ -371,15 +374,15 @@ def arrayCreateReturn(retType, funcName, typeDict, struct, first):
 		currentIndex = struct+"["+str(i)+"]"
 		if typeObj["member_type"] == "int":
 			writeString += intCreateReturn(funcName, currentIndex, first)
-			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
+			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
 		elif typeObj["member_type"] == "float":
 			writeString += floatCreateReturn(funcName, currentIndex, first)
-			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
+			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
 		elif typeObj["member_type"] == "string":
 			writeString += stringCreateReturn(funcName, currentIndex, first)
-			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
+			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += %s.length()+1;\n\n" % (currentIndex)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
 			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, first)
@@ -397,17 +400,17 @@ def structCreateReturn(retType, funcName, typeDict, struct, first):
 	for member in structMembers:
 		if member["type"] == "int":
 			writeString += intCreateReturn(funcName, struct+"."+member["name"], first)
-			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
+			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
 			writeString += "\treadLen += string(%s).length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif member["type"] == "float":
 			writeString += floatCreateReturn(funcName, struct+"."+member["name"], first)
-			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
+			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
 			writeString += "\treadLen += string(%s).length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif member["type"] == "string":
 			writeString += stringCreateReturn(funcName, struct + "." + member["name"], first)
-			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
+			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
 			writeString += "\treadLen += %s.length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif typeDict[member["type"]]["type_of_type"] == "array":
