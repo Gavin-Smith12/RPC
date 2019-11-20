@@ -1,0 +1,25 @@
+struct test3 {
+    int a[2];
+    int b[2][2];
+    string c[2][2][2];
+};
+
+struct test2 {
+    test3 t3b[2][2];
+    int uuu[4];
+    test3 t3c[2];
+};
+
+struct test1 {
+    test2 t2;
+    test3 t3[10];
+    float test4[3][3][3];
+    test2 t2b[2][2];
+    int test5[1][2][3];
+};
+
+test1 add(int aa[2], float bb[3], test1 cc);
+int subtract(int x, int y);
+int multiply(int x, int y);
+int divide(int x, int y);
+
