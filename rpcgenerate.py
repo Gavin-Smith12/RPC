@@ -546,16 +546,19 @@ def createVoidReturn():
 	return writeString
 
 def createIntReturn(retName, varName):
+	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
 	return writeString
 
 def createFloatReturn(retName, varName):
+	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
 	return writeString
 
 def createStringReturn(retName, varName):
+	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = %s;\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
 	return writeString
