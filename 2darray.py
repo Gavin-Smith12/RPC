@@ -184,7 +184,7 @@ def convertReturnType(func, typeDict):
 		writeString += voidCreateReturn(func[1])
 	elif typeDict[func[0]]["type_of_type"] == "struct":
 		writeString += "\t%s ret;\n" % func[0]
-		writeString += structCreateReturn(func[0], func[1], typeDict, "ret")
+		writeString += structCreateReturn(func[0], func[1], typeDict, "ret", True)
 	return writeString
 
 
@@ -362,7 +362,7 @@ def stringCreateReturn(funcName, structName, first):
 ### what type it is, then calls the needed helper function the number of 
 ### times the array is long. Iterates how many variables have been read from
 ### the buffer
-def arrayCreateReturn(retType, funcName, typeDict, struct):
+def arrayCreateReturn(retType, funcName, typeDict, struct, first):
 	writeString = ""
 	typeObj = typeDict[retType]
 	for i in range(typeObj["element_count"]):
@@ -380,15 +380,15 @@ def arrayCreateReturn(retType, funcName, typeDict, struct):
 			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += %s.length()+1;\n\n" % (currentIndex)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
-			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex)
+			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, first)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
-			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex)
+			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, first)
 	return writeString
 
 ### Function takes in a struct argument and looks in the type dictionary to see
 ### what the member types are, then loops through the members to call the 
 ### needed helper function. Iterates readLen every time a variable is read.
-def structCreateReturn(retType, funcName, typeDict, struct):
+def structCreateReturn(retType, funcName, typeDict, struct, first):
 	writeString = ""
 	typeObj = typeDict[retType]
 	structMembers = typeObj["members"]
@@ -409,9 +409,9 @@ def structCreateReturn(retType, funcName, typeDict, struct):
 			writeString += "\treadLen += %s.length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif typeDict[member["type"]]["type_of_type"] == "array":
-			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"])
+			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], first)
 		elif typeDict[member["type"]]["type_of_type"] == "struct":
-			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"])
+			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], first)
 	return writeString
 
 def writeStub(typeDict, functionList):
