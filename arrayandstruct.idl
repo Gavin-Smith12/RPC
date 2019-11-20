@@ -1,0 +1,16 @@
+struct test1 {
+    int a;
+    float b;
+    string c;
+};
+
+struct test2 {
+    int d[3][3];
+    test1 structarr[3];
+};
+
+test1 returnStruct(int x, float y, string z);
+int sumLargeArray(int x[100]);
+string getStructMember(test2 x);
+test1 returnMemberStruct(test2 x);
+

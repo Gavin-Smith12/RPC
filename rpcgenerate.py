@@ -179,20 +179,19 @@ def createFuncDec(func):
 ### converts what is read from the server to that type.
 def convertReturnType(func, typeDict):
 	writeString = ""
-	first = False
 	if func[0] != "void":
 		writeString += "\tint readLen = 0;\n\n"
 	if func[0] == "int":
-		writeString += intCreateReturn(func[1], "", first)
+		writeString += intCreateReturn(func[1], "")
 	elif func[0] == "float":
-		writeString += floatCreateReturn(func[1], "", first)
+		writeString += floatCreateReturn(func[1], "")
 	elif func[0] == "string":
-		writeString += "string ret = readBuffer;\n"
+		writeString += stringCreateReturn(func[1], "")
 	elif func[0] == "void":
 		writeString += voidCreateReturn(func[1])
 	elif typeDict[func[0]]["type_of_type"] == "struct":
 		writeString += "\t%s ret;\n" % func[0]
-		writeString += structCreateReturn(func[0], func[1], typeDict, "ret", first)
+		writeString += structCreateReturn(func[0], func[1], typeDict, "ret")
 	return writeString
 
 
@@ -291,22 +290,16 @@ def writeArg(argName):
 ### Function takes in an int name and writes to the C++ a string that reads 
 ### the string into an int and checks if stoi failed. Iterates how many variables
 ### have been read (readLen)
-def intCreateReturn(funcName, structName, first):
+def intCreateReturn(funcName, structName):
 	writeString = ""
 	### If not a part of a struct or array the return variable must be declared
 	if structName == "":
 		writeString += "\tint ret;\n"	
 	writeString += "\ttry {\n"
 	if structName != "":
-		if first:
-			writeString += "\t\t%s = stoi(readBuffer);\n\t } catch(invalid_argument& e) {\n" % structName
-		else:
-			writeString += "\t\t%s = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n" % structName
+		writeString += "\t\t%s = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n" % structName
 	else:
-		if first:
-			writeString += "\t\tret = stoi(readBuffer);\n\t } catch(invalid_argument& e) {\n"
-		else:
-			writeString += "\t\tret = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
+		writeString += "\t\tret = stoi((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	### Write grading log
 	#if structName == "":
@@ -316,22 +309,16 @@ def intCreateReturn(funcName, structName, first):
 ### Function takes in a float name and writes to the C++ a string that reads 
 ### the string into a float and checks if stof failed. Iterates how many variables
 ### have been read (readLen)
-def floatCreateReturn(funcName, structName, first):
+def floatCreateReturn(funcName, structName):
 	writeString = ""
 	### If not a part of a struct or array the return variable must be declared
 	if structName == "":
 		writeString += "\tfloat ret;\n"
 	writeString += "\ttry {\n"
 	if structName != "":
-		if first:
-			writeString += "\t\t%s = stof(readBuffer);\n\t } catch(invalid_argument& e) {\n" % structName
-		else:
-			writeString += "\t\t%s = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n" % structName
+		writeString += "\t\t%s = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n" % structName
 	else:
-		if first:
-			writeString += "\t\tret = stof(readBuffer);\n\t } catch(invalid_argument& e) {\n"
-		else:
-			writeString += "\t\tret = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
+		writeString += "\t\tret = stof((&(readBuffer[readLen])));\n\t } catch(invalid_argument& e) {\n"
 	writeString += "\t\tthrow C150Exception(\"%s: %s received invalid response from the server\");\n\t}\n\n" % (fileProxy, funcName)
 	### Write grading log
 	#if structName == "":
@@ -349,20 +336,13 @@ def voidCreateReturn(funcName):
 
 ### Function takes in a string name and writes the returned string to a return
 ### variable. Iterates how many variables have been read (readLen)
-def stringCreateReturn(funcName, structName, first):
+def stringCreateReturn(funcName, structName):
 	writeString = ""
-	if structName == "":
-		writeString += "\tstring ret;\n"
 	if structName != "":
-		if first:
-			writeString += "\t%s = readBuffer;\n" % structName
-		else:
-			writeString += "\t%s = &(readBuffer[readLen]);\n" % structName
+		writeString += "\t%s = &(readBuffer[readLen]);\n" % structName
 	else:
-		if first:
-			writeString += "\tret = readBuffer;\n"
-		else:
-			writeString += "\tret = &(readBuffer[readLen]);\n"
+		writeString += "\tstring ret;\n"
+		writeString += "\tret = &(readBuffer[readLen]);\n"
 	#if structName == "":
 		#writeString += "\tGRADING* << \"Returned from %s with \" << ret << endl;\n\n" % (funcName)
 	return writeString
@@ -371,59 +351,59 @@ def stringCreateReturn(funcName, structName, first):
 ### what type it is, then calls the needed helper function the number of 
 ### times the array is long. Iterates how many variables have been read from
 ### the buffer
-def arrayCreateReturn(retType, funcName, typeDict, struct, first):
+def arrayCreateReturn(retType, funcName, typeDict, struct):
 	writeString = ""
 	typeObj = typeDict[retType]
 	for i in range(typeObj["element_count"]):
 		currentIndex = struct+"["+str(i)+"]"
 		if typeObj["member_type"] == "int":
-			writeString += intCreateReturn(funcName, currentIndex, first)
+			writeString += intCreateReturn(funcName, currentIndex)
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
-			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
+			writeString += "\treadLen += to_string(%s).length()+1;\n\n" % (currentIndex)
 			first = False
 		elif typeObj["member_type"] == "float":
-			writeString += floatCreateReturn(funcName, currentIndex, first)
+			writeString += floatCreateReturn(funcName, currentIndex)
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
-			writeString += "\treadLen += string(%s).length()+1;\n\n" % (currentIndex)
+			writeString += "\treadLen += to_string(%s).length()+1;\n\n" % (currentIndex)
 			first = False
 		elif typeObj["member_type"] == "string":
-			writeString += stringCreateReturn(funcName, currentIndex, first)
+			writeString += stringCreateReturn(funcName, currentIndex)
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += %s.length()+1;\n\n" % (currentIndex)
 			first = False
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
-			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, first)
+			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
-			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, first)
+			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex)
 	return writeString
 
 ### Function takes in a struct argument and looks in the type dictionary to see
 ### what the member types are, then loops through the members to call the 
 ### needed helper function. Iterates readLen every time a variable is read.
-def structCreateReturn(retType, funcName, typeDict, struct, first):
+def structCreateReturn(retType, funcName, typeDict, struct):
 	writeString = ""
 	typeObj = typeDict[retType]
 	structMembers = typeObj["members"]
 	for member in structMembers:
 		if member["type"] == "int":
-			writeString += intCreateReturn(funcName, struct+"."+member["name"], first)
+			writeString += intCreateReturn(funcName, struct+"."+member["name"])
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
-			writeString += "\treadLen += string(%s).length()+1;\n\n" % (struct+"."+member["name"])
+			writeString += "\treadLen += to_string(%s).length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif member["type"] == "float":
-			writeString += floatCreateReturn(funcName, struct+"."+member["name"], first)
+			writeString += floatCreateReturn(funcName, struct+"."+member["name"])
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
-			writeString += "\treadLen += string(%s).length()+1;\n\n" % (struct+"."+member["name"])
+			writeString += "\treadLen += to_string(%s).length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif member["type"] == "string":
-			writeString += stringCreateReturn(funcName, struct + "." + member["name"], first)
+			writeString += stringCreateReturn(funcName, struct + "." + member["name"])
 			#writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, struct+"."+member["name"])
 			writeString += "\treadLen += %s.length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif typeDict[member["type"]]["type_of_type"] == "array":
-			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], first)
+			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"])
 		elif typeDict[member["type"]]["type_of_type"] == "struct":
-			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], first)
+			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"])
 	return writeString
 
 def writeStub(typeDict, functionList):
@@ -576,7 +556,6 @@ def createStringReturn(retName, varName):
 def createStructReturn(retType, retName, typeDict):
 	# To do: change fullName variable name
 	writeString = ""
-	print retName
 	members = typeDict[retType]["members"]
 	for m in members:
 		mName = m["name"]
@@ -706,7 +685,6 @@ def readArray(first, argType, argName, typeDict):
 	bracketString = "%s[i]" % argName
 	for i in range(depth - 1):
 		bracketString += "[%s]" % chr(ord('i') + (i + 1))
-	print "DEPTH: " + str(depth)
 	if memberType == "int":
 		writeString += readInt(bracketString, first, depth + 2)[0]
 	elif memberType == "float":
