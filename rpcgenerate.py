@@ -557,6 +557,7 @@ def createStringReturn(retName, varName):
 def createStructReturn(retType, retName, typeDict):
 	# To do: change fullName variable name
 	writeString = ""
+	print retName
 	members = typeDict[retType]["members"]
 	for m in members:
 		mName = m["name"]
@@ -574,7 +575,7 @@ def createStructReturn(retType, retName, typeDict):
 		elif typeDict[mType]["type_of_type"] == "struct":
 			writeString += createStructReturn(mType, fullName, typeDict)[0]
 		# RPCSOCKETWRITE
-		writeString += "\tRPCSTUBSOCKET->write(%s.c_str(), %s.length()+1);\n\n" % (strName, strName)
+		writeString += "\tRPCSTUBSOCKET->write(%s.c_str(), %s.length()+1);\n\n" % (fullName, fullName)
 	return writeString
 
 def createArrayReturn(retType, retName, typeDict):
@@ -582,7 +583,6 @@ def createArrayReturn(retType, retName, typeDict):
 	memberType = typeDict[retType]["member_type"]
 	elemCount  = typeDict[retType]["element_count"]
 
-	writeString += "\tstring temp;\n"
 	depth = 1
 	while typeDict[memberType]["type_of_type"] == "array":
 		depth += 1
@@ -604,7 +604,7 @@ def createArrayReturn(retType, retName, typeDict):
 
 	for i in range(depth, 0, -1):
 		writeString += "\t" * i + "}\n"
-
+	writeString += "\n"
 	return (writeString, False)
 
 def arrayNDToArgType(depth, argType, argName, typeDict):
@@ -636,18 +636,18 @@ def createFunctionCall(func):
 	return writeString
 
 def readInt(argName, first, tabs):
-	writeString = "\t" * (tabs+1) + "%s = stoi(string(&(readBuffer[readLen])));\n" % (argName)
-	writeString += "\t" * (tabs+1) + "readLen += to_string(%s).length()+1;\n\n" % (argName)
+	writeString = "\t" * tabs + "%s = stoi(string(&(readBuffer[readLen])));\n" % (argName)
+	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n" % (argName)
 	return (writeString, False)
 
 def readFloat(argName, first, tabs):
-	writeString = "\t" * (tabs+1) + "%s = stof(string(&(readBuffer[readLen])));\n" % (argName)
-	writeString += "\t" * (tabs+1) + "readLen += to_string(%s).length()+1;\n\n" % (argName)
+	writeString = "\t" * tabs + "%s = stof(string(&(readBuffer[readLen])));\n" % (argName)
+	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n" % (argName)
 	return (writeString, False)
 
 def readString(argName, first, tabs):
-	writeString = "\t" * (tabs+1) + "%s = &(readBuffer[readLen]);\n" % (argName)
-	writeString += "\t" * (tabs+1) + "readLen += %s.length()+1;\n\n" % (argName)
+	writeString = "\t" * tabs + "%s = &(readBuffer[readLen]);\n" % (argName)
+	writeString += "\t" * tabs + "readLen += %s.length()+1;\n" % (argName)
 	return (writeString, False)
 
 def readStruct(first, argType, argName, typeDict):
@@ -687,13 +687,13 @@ def readArray(first, argType, argName, typeDict):
 	bracketString = "%s[i]" % argName
 	for i in range(depth - 1):
 		bracketString += "[%s]" % chr(ord('i') + (i + 1))
-	
+	print "DEPTH: " + str(depth)
 	if memberType == "int":
-		writeString += readInt(bracketString, first, depth)[0]
+		writeString += readInt(bracketString, first, depth + 2)[0]
 	elif memberType == "float":
-		writeString += readFloat(bracketString, first, depth)[0]
+		writeString += readFloat(bracketString, first, depth + 2)[0]
 	elif memberType == "string":
-		writeString += readString(bracketString, first, depth)[0]
+		writeString += readString(bracketString, first, depth + 2)[0]
 	elif typeDict[memberType]["type_of_type"] == "struct":
 		writeString += readStruct(first, memberType, bracketString, typeDict)[0]
 
