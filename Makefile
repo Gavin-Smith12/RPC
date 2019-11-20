@@ -124,8 +124,8 @@ arrayandstructserver: arrayandstruct.stub.o rpcserver.o rpcstubhelper.o arrayand
 ########################################################################
 
 # Compile the rpcgenerate program
-rpcgenerate: Makefile rpcgenerate.o $(C150AR) $(C150IDSRPCAR) $(INCLUDES)
-	$(CPP) -o rpcgenerate rpcgenerate.o $(C150AR) $(C150IDSRPCAR)
+#rpcgenerate: Makefile rpcgenerate.o $(C150AR) $(C150IDSRPCAR) $(INCLUDES)
+#	$(CPP) -o rpcgenerate rpcgenerate.o $(C150AR) $(C150IDSRPCAR)
 
 ########################################################################
 #
@@ -148,12 +148,12 @@ rpcgenerate: Makefile rpcgenerate.o $(C150AR) $(C150IDSRPCAR) $(INCLUDES)
 ########################################################################
 
 # Compile / link any client executable: 
-#%client: %.o %.proxy.o rpcserver.o rpcproxyhelper.o %client.o %.proxy.o
-#	$(CPP) -o $@ $@.o rpcproxyhelper.o $*.proxy.o  $(C150AR) $(C150IDSRPCAR) 
+%client: %.o %.proxy.o rpcserver.o rpcproxyhelper.o %client.o %.proxy.o
+	$(CPP) -o $@ $@.o rpcproxyhelper.o $*.proxy.o  $(C150AR) $(C150IDSRPCAR) 
 
 # Compile / link any server executable:
-#%server: %.o %.stub.o rpcserver.o rpcstubhelper.o %.stub.o
-#	$(CPP) -o $@ rpcserver.o $*.stub.o $*.o rpcstubhelper.o $(C150AR) $(C150IDSRPCAR) 
+%server: %.o %.stub.o rpcserver.o rpcstubhelper.o %.stub.o
+	$(CPP) -o $@ rpcserver.o $*.stub.o $*.o rpcstubhelper.o $(C150AR) $(C150IDSRPCAR) 
 
 
 ########################################################################
@@ -175,8 +175,8 @@ rpcgenerate: Makefile rpcgenerate.o $(C150AR) $(C150IDSRPCAR) $(INCLUDES)
 #
 ########################################################################
 
-# %.proxy.cpp %.stub.cpp:%.idl $(RPCGEN)
-#	$(RPCGEN) $<
+%.proxy.cpp %.stub.cpp:%.idl $(RPCGEN)
+	$(RPCGEN) $<
 
 ########################################################################
 #
