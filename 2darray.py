@@ -17,9 +17,7 @@ def idlToJson(fileName):
 	with open(fileName) as idlFile:
 		idlText = idlFile.read()
 
-	#
-	#     Make sure idl_to_json exists and is executable
-	#
+	### Make sure the idl file exists and is of the correct format
 	if (not os.path.isfile(IDL_TO_JSON_EXECUTABLE)):
 		print >> sys.stderr,                                       \
 			("Path %s does not designate a file...run \"make\" to create it" % 
@@ -30,9 +28,7 @@ def idlToJson(fileName):
 							  IDL_TO_JSON_EXECUTABLE)
 		raise "File " + IDL_TO_JSON_EXECUTABLE + " not executable"
 
-	#
-	#     Parse declarations into a Python dictionary
-	#
+	### Put the declarations into a python dictionary
 	decls = json.loads(subprocess.check_output([IDL_TO_JSON_EXECUTABLE, fileName]))
 
 
@@ -43,22 +39,16 @@ def idlToJson(fileName):
 def createFunctionsList(decls):
 
 	functionList = []
-	#
-	# Loop printing each function signature
-	#
+	
+	### Loop through all function signitures
 	for  name, sig in decls["functions"].iteritems():
 
-		# Python Array of all args (each is a hash with keys "name" and "type")
+		### Create array of arguments that contains type and name
 		args = sig["arguments"]
 
 		# Make a string of form:  "type1 arg1, type2 arg2" for use in function sig
 		argstring = ', '.join([a["type"] + ' ' + a["name"] for a in args])
-
-		# print the function signature
-		#print "%s %s(%s)" % (sig["return_type"], name, argstring)
-
-
-
+		
 		functionList.append((sig["return_type"], name, args))
 
 	return functionList
@@ -102,26 +92,7 @@ def writeProxy(typeDict, functionList):
 
 	### Create declaration line of function
 	for func in functionList:
-		writeString = "%s %s(" % (func[0], func[1])
-		first = True
-		### Loop through arguments of the function
-		for arg in func[2]:
-			typeObj = typeDict[arg["type"]]
-			### If its the first argument don't have a comma
-			if first:
-				if typeObj["type_of_type"] == "array":
-					arraySplit = arg["type"].find('[')
-					writeString += "%s %s%s" % (arg["type"][:arraySplit][2:], arg["name"], arg["type"][arraySplit:])
-				else:
-					writeString = writeString + "%s %s" % (arg["type"], arg["name"])
-				first = False
-			else:
-				if typeObj["type_of_type"] == "array":
-					arraySplit = arg["type"].find('[')
-					writeString += ", %s %s%s" % (arg["type"][:arraySplit][2:], arg["name"], arg["type"][arraySplit:])
-				else:
-					writeString = writeString + ", %s %s" % (arg["type"], arg["name"])
-		writeString = writeString + ") {\n"
+		writeString = createFuncDec(func)
 		declaredFunc = writeString[:-2]
 
 		### Write grading log
@@ -135,21 +106,18 @@ def writeProxy(typeDict, functionList):
 		if func[0] == "void":
 			writeString += "\tchar readBuffer[5];\n\n"
 		else:
-			writeString = writeString + "\tchar readBuffer[512];\n\n"
+			writeString += "\tchar readBuffer[512];\n\n"
 
 		### Debug statement for starting write
-		writeString = writeString + "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invoked\");\n\n" % (fileProxy, func[1])
+		writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s() invoked\");\n\n" % (fileProxy, func[1])
 
 		### Writing function and arguments
-		writeString = writeString + "\tRPCPROXYSOCKET->write(\"%s\", strlen(\"%s\")+1);\n" % (func[1], func[1])
+		writeString += "\tRPCPROXYSOCKET->write(\"%s\", strlen(\"%s\")+1);\n\n" % (func[1], func[1])
 		
-		writeString = writeString + "\n"
-
 		### Convert arguments to strings
 		for arg in func[2]:
 			ret = createArg(arg, typeDict)
 			writeString += ret
-
 		writeString += "\n"
 
 		### Debug statement for invocation then wait
@@ -159,17 +127,7 @@ def writeProxy(typeDict, functionList):
 		writeString += "\tRPCPROXYSOCKET->read(readBuffer, sizeof(readBuffer));\n\n"
 
 		### Convert return to correct type
-		if func[0] == "int":
-			writeString += intCreateReturn(func[1], "", 0)
-		elif func[0] == "float":
-			writeString += floatCreateReturn(func[1], "", 0)
-		elif func[0] == "string":
-			writeString += "string ret = readBuffer;\n"
-		elif func[0] == "void":
-			writeString += voidCreateReturn(func[1])
-		elif typeDict[func[0]]["type_of_type"] == "struct":
-			writeString += "\t%s ret;\n" % func[0]
-			writeString += structCreateReturn(func[0], func[1], typeDict, "ret", 0, True)
+		writeString += convertReturnType(func, typeDict)
 
 		### Successful return statement and return
 		writeString += "\tc150debug->printf(C150RPCDEBUG,\"%s: %s successful return from remote call\");\n\n" % (fileProxy, func[1])
@@ -181,6 +139,49 @@ def writeProxy(typeDict, functionList):
 
 		with open(fileProxy, "a") as file:
 			file.write(writeString)
+
+### Function creates the function declaration by printing the function type and
+### name and then loops through the arguments, printing each.
+def createFuncDec(func):
+	writeString = "%s %s(" % (func[0], func[1])
+	first = True
+	### Loop through arguments of the function
+	for arg in func[2]:
+		typeObj = typeDict[arg["type"]]
+		### If its the first argument don't have a comma
+		if first:
+			if typeObj["type_of_type"] == "array":
+				arraySplit = arg["type"].find('[')
+				writeString += "%s %s%s" % (arg["type"][:arraySplit][2:], arg["name"], arg["type"][arraySplit:])
+			else:
+				writeString += "%s %s" % (arg["type"], arg["name"])
+			first = False
+		else:
+			if typeObj["type_of_type"] == "array":
+				arraySplit = arg["type"].find('[')
+				writeString += ", %s %s%s" % (arg["type"][:arraySplit][2:], arg["name"], arg["type"][arraySplit:])
+			else:
+				writeString = writeString + ", %s %s" % (arg["type"], arg["name"])
+	writeString += ") {\n"
+	return writeString
+
+### Function creates a new variable that is of the type of the return type and
+### converts what is read from the server to that type.
+def convertReturnType(func, typeDict):
+	writeString = ""
+	if func[0] == "int":
+		writeString += intCreateReturn(func[1], "", 0)
+	elif func[0] == "float":
+		writeString += floatCreateReturn(func[1], "", 0)
+	elif func[0] == "string":
+		writeString += "string ret = readBuffer;\n"
+	elif func[0] == "void":
+		writeString += voidCreateReturn(func[1])
+	elif typeDict[func[0]]["type_of_type"] == "struct":
+		writeString += "\t%s ret;\n" % func[0]
+		writeString += structCreateReturn(func[0], func[1], typeDict, "ret")
+	return writeString
+
 
 ### Function is called with an argument and the type dictionary and returns 
 ### the string that is the argument being written to the stub. Calls helper 
@@ -356,7 +357,7 @@ def stringCreateReturn(funcName, structName, first):
 ### what type it is, then calls the needed helper function the number of 
 ### times the array is long. Iterates how many variables have been read from
 ### the buffer
-def arrayCreateReturn(retType, funcName, typeDict, struct, readLen, first):
+def arrayCreateReturn(retType, funcName, typeDict, struct):
 	writeString = ""
 	typeObj = typeDict[retType]
 	for i in range(typeObj["element_count"]):
@@ -374,15 +375,15 @@ def arrayCreateReturn(retType, funcName, typeDict, struct, readLen, first):
 			writeString += "\tGRADING* << \"Returned from %s with return \" << %s << endl;\n" % (funcName, currentIndex)
 			writeString += "\treadLen += %s.length()+1;\n\n" % (currentIndex)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "array":
-			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, readLen, first)
+			writeString += arrayCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex)
 		elif typeDict[typeObj["member_type"]]["type_of_type"] == "struct":
-			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex, readLen, first)
+			writeString += structCreateReturn(typeObj["member_type"], funcName, typeDict, currentIndex)
 	return writeString
 
 ### Function takes in a struct argument and looks in the type dictionary to see
 ### what the member types are, then loops through the members to call the 
 ### needed helper function. Iterates readLen every time a variable is read.
-def structCreateReturn(retType, funcName, typeDict, struct, readLen, first):
+def structCreateReturn(retType, funcName, typeDict, struct):
 	writeString = ""
 	typeObj = typeDict[retType]
 	structMembers = typeObj["members"]
@@ -403,9 +404,9 @@ def structCreateReturn(retType, funcName, typeDict, struct, readLen, first):
 			writeString += "\treadLen += %s.length()+1;\n\n" % (struct+"."+member["name"])
 			first = False
 		elif typeDict[member["type"]]["type_of_type"] == "array":
-			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], readLen, first)
+			writeString += arrayCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"])
 		elif typeDict[member["type"]]["type_of_type"] == "struct":
-			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"], readLen, first)
+			writeString += structCreateReturn(member["type"], funcName, typeDict, struct + "." + member["name"])
 	return writeString
 
 def writeStub(typeDict, functionList):
