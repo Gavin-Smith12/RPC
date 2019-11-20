@@ -546,13 +546,19 @@ def createVoidReturn():
 	return writeString
 
 def createIntReturn(retName, varName):
-	return "\tstring %sStr = to_string(%s);\n" % (retName, varName)
+	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
+	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
+	return writeString
 
 def createFloatReturn(retName, varName):
-	return "\tstring %sStr = to_string(%s);\n" % (retName, varName)
+	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
+	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
+	return writeString
 
 def createStringReturn(retName, varName):
-	return "\tstring %sStr = %s;\n" % (retName, varName)
+	writeString = "\tstring %sStr = %s;\n" % (retName, varName)
+	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
+	return writeString
 
 def createStructReturn(retType, retName, typeDict):
 	# To do: change fullName variable name
@@ -565,17 +571,17 @@ def createStructReturn(retType, retName, typeDict):
 		strName = "%s%s" % (retName, mName)
 		fullName = "%s.%s" % (retName, mName)
 		if mType == "int":
-			writeString += createIntReturn(strName, fullName)[0]
+			writeString += createIntReturn(fullName, fullName)
 		elif mType == "float":
-			writeString += createFloatReturn(strName, fullName)[0]
+			writeString += createFloatReturn(fullName, fullName)
 		elif mType == "string":
-			writeString += createStringReturn(strName, fullName)[0]
+			writeString += createStringReturn(fullName, fullName)
 		elif typeDict[mType]["type_of_type"] == "array":
-			writeString += createArrayReturn(mType, fullName, typeDict)[0]
+			writeString += createArrayReturn(mType, fullName, typeDict)
 		elif typeDict[mType]["type_of_type"] == "struct":
-			writeString += createStructReturn(mType, fullName, typeDict)[0]
-		# RPCSOCKETWRITE
-		writeString += "\tRPCSTUBSOCKET->write(%s.c_str(), %s.length()+1);\n\n" % (fullName, fullName)
+			writeString += createStructReturn(mType, fullName, typeDict)
+		else:
+			print "Error"
 	return writeString
 
 def createArrayReturn(retType, retName, typeDict):
@@ -605,7 +611,7 @@ def createArrayReturn(retType, retName, typeDict):
 	for i in range(depth, 0, -1):
 		writeString += "\t" * i + "}\n"
 	writeString += "\n"
-	return (writeString, False)
+	return writeString
 
 def arrayNDToArgType(depth, argType, argName, typeDict):
 	writeString = ""
