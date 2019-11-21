@@ -424,6 +424,8 @@ def createStubFunction(func):
 	writeString = "void __%s(" % func[1]
 	writeString += ") {\n"
 
+	writeString += "\t*GRADING << \"Starting to receive %s %s()\" << endl;\n\n" % (func[0], func[1])
+
 	### Create read buffer
 	if len(func[2]) > 0:
 		writeString += "\tchar readBuffer[512];\n\n"
@@ -432,7 +434,7 @@ def createStubFunction(func):
 	writeString += stubCreateArgDecls(func[2], typeDict)
 	### Create return type declaration
 	writeString += createReturnDecl(func[0])
-	
+
 	### Declare length variable for parsing readBuffer
 	if len(func[2]) > 0:
 		writeString += "\tint readLen = 0;\n"
@@ -562,6 +564,7 @@ def createIntReturn(retName, varName):
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
+	writeString += "*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
 	return writeString
 
 ### Function takes in a variable name and changes that variable from a float
@@ -571,6 +574,7 @@ def createFloatReturn(retName, varName):
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
+	writeString += "*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
 	return writeString
 
 ### Function takes in a variable name and writes the string to the client.
@@ -579,6 +583,7 @@ def createStringReturn(retName, varName):
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = %s;\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
+	writeString += "*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
 	return writeString
 
 ### Function takes in a return type that is a struct and loops through its 
@@ -676,18 +681,21 @@ def createFunctionCall(func):
 def readInt(argName, first, tabs):
 	writeString = "\t" * tabs + "%s = stoi(string(&(readBuffer[readLen])));\n" % (argName)
 	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n" % (argName)
+	writeString += "\t*GRADING << \"Recieved argument %s with value \" << %s << endl;\n\n" % (argName, argName)
 	return (writeString, False)
 
 ### Takes in an argument name and reads in a float from the client.
 def readFloat(argName, first, tabs):
 	writeString = "\t" * tabs + "%s = stof(string(&(readBuffer[readLen])));\n" % (argName)
 	writeString += "\t" * tabs + "readLen += to_string(%s).length()+1;\n" % (argName)
+	writeString += "\t*GRADING << \"Recieved argument %s with value \" << %s << endl;\n\n" % (argName, argName)
 	return (writeString, False)
 
 ### Takes in an argument name and reads a string from the client.
 def readString(argName, first, tabs):
 	writeString = "\t" * tabs + "%s = &(readBuffer[readLen]);\n" % (argName)
 	writeString += "\t" * tabs + "readLen += %s.length()+1;\n" % (argName)
+	writeString += "\t*GRADING << \"Recieved argument %s with value \" << %s << endl;\n\n" % (argName, argName)
 	return (writeString, False)
 
 ### Takes in an argument name that is a struct and loops through the members,
