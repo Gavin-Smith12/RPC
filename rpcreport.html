@@ -211,6 +211,15 @@ this is due to not accounting for modularity beforehand. Each of the functions
 where we loop through an array or struct to get all of its members could be 
 consolidated, but we did not think of this until it was too late.</p>
 
+<p>The design choice that we made to have all of the writes to the server be
+seperate writes made it so that our code was easy to write and debug, but 
+it came at the cost of performace. Because we wrote all writes to be seperate
+we had to add things like sleeps in our code so that the client/server has 
+enough time to do all the reads before the writing is done. I think this tradeoff
+was a good choice because the hit to our overall performance was not that great
+and it made it so that our python and C++ code is much easier to read and interpret. 
+</p>
+
 </div>
 </div>
 </body>
