@@ -564,7 +564,7 @@ def createIntReturn(retName, varName):
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
-	writeString += "*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
+	writeString += "\t*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
 	return writeString
 
 ### Function takes in a variable name and changes that variable from a float
@@ -574,7 +574,7 @@ def createFloatReturn(retName, varName):
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = to_string(%s);\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
-	writeString += "*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
+	writeString += "\t*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
 	return writeString
 
 ### Function takes in a variable name and writes the string to the client.
@@ -583,7 +583,7 @@ def createStringReturn(retName, varName):
 	retName = retName.replace('[','').replace(']', '').replace('.','')
 	writeString = "\tstring %sStr = %s;\n" % (retName, varName)
 	writeString += "\tRPCSTUBSOCKET->write(%sStr.c_str(), %sStr.length()+1);\n\n" % (retName, retName)
-	writeString += "*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
+	writeString += "\t*GRADING << \"Writing return variable %s with value \" << %s << endl;\n\n" % (varName, varName)
 	return writeString
 
 ### Function takes in a return type that is a struct and loops through its 
